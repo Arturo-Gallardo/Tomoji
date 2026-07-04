@@ -22,6 +22,10 @@ function handleMenuAction(
       handlers.onUnfreeze();
       void showTargetPicker("walk");
       break;
+    case "floorCrawlTo":
+      handlers.onUnfreeze();
+      void showTargetPicker("floorCrawl");
+      break;
     case "crawlTo":
       handlers.onUnfreeze();
       void showTargetPicker("crawl");

@@ -42,6 +42,7 @@ function shouldFlipSprite(
   if (
     action !== "idle" &&
     action !== "walk" &&
+    action !== "floorCrawl" &&
     action !== "sit" &&
     action !== "sitAlt" &&
     action !== "sitAlt2" &&

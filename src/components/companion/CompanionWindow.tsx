@@ -55,6 +55,7 @@ function CompanionWindowInner({ instance, registry }: CompanionWindowInnerProps)
     playMenuAnimation,
     turnAround,
     walkToAnchorX,
+    floorCrawlToAnchorX,
     crawlToAnchorX,
     climbToAnchorY,
     isFrozen,
@@ -94,6 +95,7 @@ function CompanionWindowInner({ instance, registry }: CompanionWindowInnerProps)
   });
   useCompanionWalkPickerEvents({
     onSelectWalkTarget: walkToAnchorX,
+    onSelectFloorCrawlTarget: floorCrawlToAnchorX,
     onSelectCrawlTarget: crawlToAnchorX,
     onSelectClimbTarget: climbToAnchorY,
     onCancel: () => {},

@@ -19,6 +19,7 @@ import {
   type AnimationPlaybackStyle,
   type CharacterLibraryEntry,
   type CharacterManifest,
+  type RandomSitAction,
 } from "../types/character";
 import type { SurfaceLock } from "../types/companion";
 import type { CompanionMenuAnimationAction } from "../types/companionMenu";
@@ -45,24 +46,28 @@ export interface AnimationRegistry {
   ) => CompanionAction;
   getGrabbedLeanFrame: (tier: GrabbedLeanTier) => string;
   // picks a floor sit variant among assigned sit / sitAlt / sitAlt2 slots
-  pickFloorSitAction: () => CompanionAction;
+  pickFloorSitAction: (
+    allowedActions?: readonly RandomSitAction[],
+  ) => RandomSitAction | null;
+  canFloorCrawl: boolean;
   contextMenuActions: readonly CompanionMenuAnimationAction[];
 }
 
-const FLOOR_SIT_ACTIONS: readonly CompanionAction[] = [
+const FLOOR_SIT_ACTIONS: readonly RandomSitAction[] = [
   "sit",
   "sitAlt",
   "sitAlt2",
 ];
 
 function isFloorSitAction(action: CompanionAction): boolean {
-  return FLOOR_SIT_ACTIONS.includes(action);
+  return (FLOOR_SIT_ACTIONS as readonly CompanionAction[]).includes(action);
 }
 
 // each engine action maps to one manifest slot.
 const ACTION_TO_CATEGORY: Record<CompanionAction, AnimationCategory> = {
   idle: "idle",
   walk: "walk",
+  floorCrawl: "floorCrawl",
   sit: "sit",
   sitAlt: "sitAlt",
   sitAlt2: "sitAlt2",
@@ -154,6 +159,7 @@ function actionVelocity(
 ): { x: number; y: number } {
   switch (action) {
     case "walk":
+    case "floorCrawl":
     case "climbCeiling":
       return { x: -speed, y: 0 };
     case "climbWall":
@@ -324,12 +330,16 @@ async function buildImportedRegistry(
     return (data?.frames.length ?? 0) > 0;
   };
 
-  const pickFloorSitAction = (): CompanionAction => {
-    const available = FLOOR_SIT_ACTIONS.filter((action) =>
-      hasCategoryFrames(ACTION_TO_CATEGORY[action]),
+  const pickFloorSitAction = (
+    allowedActions: readonly RandomSitAction[] = FLOOR_SIT_ACTIONS,
+  ): RandomSitAction | null => {
+    const available = FLOOR_SIT_ACTIONS.filter(
+      (action) =>
+        allowedActions.includes(action) &&
+        hasCategoryFrames(ACTION_TO_CATEGORY[action]),
     );
     if (available.length === 0) {
-      return "sit";
+      return null;
     }
     return available[Math.floor(Math.random() * available.length)];
   };
@@ -399,6 +409,7 @@ async function buildImportedRegistry(
     resolveDisplayAction: resolveImportedDisplayAction,
     getGrabbedLeanFrame,
     pickFloorSitAction,
+    canFloorCrawl: hasCategoryFrames("floorCrawl"),
     contextMenuActions,
   };
 }

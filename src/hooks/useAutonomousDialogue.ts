@@ -23,6 +23,7 @@ function isAutonomousDialogueEligible(state: CompanionBehaviorState): boolean {
 }
 
 interface UseAutonomousDialogueOptions {
+  isEnabled: boolean;
   isReady: boolean;
   isFrozen: boolean;
   isFrozenRef: RefObject<boolean>;
@@ -36,6 +37,7 @@ interface UseAutonomousDialogueOptions {
 }
 
 export function useAutonomousDialogue({
+  isEnabled,
   isReady,
   isFrozen,
   isFrozenRef,
@@ -59,6 +61,7 @@ export function useAutonomousDialogue({
   useEffect(() => {
     if (
       !isReady ||
+      !isEnabled ||
       isFrozen ||
       isMuted ||
       !isAutonomousDialogueEligible(behaviorState)
@@ -112,6 +115,7 @@ export function useAutonomousDialogue({
   }, [
     behaviorState,
     behaviorStateRef,
+    isEnabled,
     isFrozen,
     isFrozenRef,
     isMuted,

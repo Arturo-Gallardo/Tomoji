@@ -1,8 +1,59 @@
-import { useState } from "react";
-import { isBuiltinCharacterId } from "../../services/characterLibrary";
+import { useEffect, useState } from "react";
+import {
+  normalizeBehaviorSettings,
+  RANDOM_SIT_ACTIONS,
+} from "../../services/behaviorSettings";
+import {
+  getCharacter,
+  isBuiltinCharacterId,
+} from "../../services/characterLibrary";
 import { TomojiPageHeader } from "./TomojiPageHeader";
 import { TomojiPageLayout } from "./TomojiPageLayout";
+import { SettingsToggleRow } from "./SettingsToggleRow";
+import type { BehaviorSettings, RandomSitAction } from "../../types/character";
 import type { CompanionInstance } from "../../types/companionInstance";
+
+type RandomBehaviorKey = Extract<
+  keyof BehaviorSettings,
+  | "allowRandomWalk"
+  | "allowRandomFloorCrawl"
+  | "allowRandomSit"
+  | "allowRandomWallClimb"
+  | "allowRandomCeilingCrawl"
+  | "allowRandomDialogue"
+>;
+
+const RANDOM_SIT_OPTIONS: readonly {
+  action: RandomSitAction;
+  label: string;
+  description: string;
+}[] = [
+  {
+    action: "sit",
+    label: "Primary",
+    description: "main floor sit",
+  },
+  {
+    action: "sitAlt",
+    label: "Alt 1",
+    description: "second sit slot",
+  },
+  {
+    action: "sitAlt2",
+    label: "Alt 2",
+    description: "third sit slot",
+  },
+];
+
+function sameSitActions(
+  first: readonly RandomSitAction[],
+  second: readonly RandomSitAction[],
+): boolean {
+  return (
+    first.length === second.length &&
+    first.every((action, index) => action === second[index])
+  );
+}
 
 interface CharacterSettingsEditorProps {
   instance: CompanionInstance;
@@ -23,11 +74,24 @@ export function CharacterSettingsEditor({
   const isBuiltin = isBuiltinCharacterId(instance.characterId);
   const [name, setName] = useState(instance.characterId);
   const [scale, setScale] = useState(instance.scale);
-  const [behavior, setBehavior] = useState(instance.behaviorSettings);
+  const [behavior, setBehavior] = useState(() =>
+    normalizeBehaviorSettings(instance.behaviorSettings),
+  );
   const [dialogue, setDialogue] = useState(instance.dialogueSettings);
+  const [availableRandomSitActions, setAvailableRandomSitActions] =
+    useState<RandomSitAction[] | null>(null);
+  const [hasFloorCrawl, setHasFloorCrawl] = useState(false);
   const [lineDraft, setLineDraft] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const canEditFrames = onEditFrames !== undefined;
+  const visibleSitOptions = RANDOM_SIT_OPTIONS.filter(
+    (option) =>
+      availableRandomSitActions === null ||
+      availableRandomSitActions.includes(option.action),
+  );
+  const showSitVariantPicker = visibleSitOptions.length > 1;
+  const hasRandomSitVariants =
+    availableRandomSitActions === null || availableRandomSitActions.length > 0;
 
   const addLine = () => {
     const trimmed = lineDraft.trim();
@@ -47,6 +111,82 @@ export function CharacterSettingsEditor({
       lines: current.lines.filter((_, i) => i !== index),
     }));
   };
+
+  const setRandomBehavior = (key: RandomBehaviorKey, checked: boolean) => {
+    setBehavior((current) => ({
+      ...current,
+      [key]: checked,
+    }));
+  };
+
+  const toggleRandomSitAction = (
+    action: RandomSitAction,
+    checked: boolean,
+  ) => {
+    setBehavior((current) => {
+      const nextActions = checked
+        ? [...current.randomSitActions, action]
+        : current.randomSitActions.filter(
+            (currentAction) => currentAction !== action,
+          );
+
+      return {
+        ...current,
+        randomSitActions: RANDOM_SIT_ACTIONS.filter((currentAction) =>
+          nextActions.includes(currentAction),
+        ),
+      };
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getCharacter(instance.characterId).then((entry) => {
+      if (cancelled) {
+        return;
+      }
+
+      const manifest = entry?.manifest;
+      const available = RANDOM_SIT_ACTIONS.filter(
+        (action) => (manifest?.animations[action]?.frames.length ?? 0) > 0,
+      );
+      setAvailableRandomSitActions(available);
+      setHasFloorCrawl(
+        (manifest?.animations.floorCrawl?.frames.length ?? 0) > 0,
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [instance.characterId]);
+
+  useEffect(() => {
+    if (availableRandomSitActions === null) {
+      return;
+    }
+
+    setBehavior((current) => {
+      const normalized =
+        availableRandomSitActions.length <= 1
+          ? availableRandomSitActions
+          : RANDOM_SIT_ACTIONS.filter(
+              (action) =>
+                availableRandomSitActions.includes(action) &&
+                current.randomSitActions.includes(action),
+            );
+
+      if (sameSitActions(current.randomSitActions, normalized)) {
+        return current;
+      }
+
+      return {
+        ...current,
+        randomSitActions: normalized,
+      };
+    });
+  }, [availableRandomSitActions]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -180,6 +320,160 @@ export function CharacterSettingsEditor({
               className="mt-2 w-full"
             />
           </label>
+
+          <div className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/70">
+            <div className="border-b border-neutral-800 px-4 py-3">
+              <p className="text-sm font-bold text-white">Autonomy</p>
+              <p className="mt-1 text-xs text-neutral-500">
+                Choose what this Tomoji can do without being told.
+              </p>
+            </div>
+
+            <div className="divide-y divide-neutral-800">
+              <div className="px-4 py-3">
+                <SettingsToggleRow
+                  label="Walk around"
+                  description="Pick floor destinations on its own"
+                  checked={behavior.allowRandomWalk}
+                  onChange={(checked) =>
+                    setRandomBehavior("allowRandomWalk", checked)
+                  }
+                />
+              </div>
+
+              <div className="px-4 py-3">
+                <SettingsToggleRow
+                  label="Crawl on floor"
+                  description={
+                    hasFloorCrawl
+                      ? "Creep along the floor with its crawl animation"
+                      : "No floor crawl animation is assigned"
+                  }
+                  checked={behavior.allowRandomFloorCrawl && hasFloorCrawl}
+                  disabled={!hasFloorCrawl}
+                  onChange={(checked) =>
+                    setRandomBehavior("allowRandomFloorCrawl", checked)
+                  }
+                />
+
+                {hasFloorCrawl && behavior.allowRandomFloorCrawl ? (
+                  <label className="mt-3 block">
+                    <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
+                      Crawl chance:{" "}
+                      {Math.round(behavior.floorCrawlFrequency * 100)}%
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={behavior.floorCrawlFrequency}
+                      onChange={(event) =>
+                        setBehavior((current) => ({
+                          ...current,
+                          floorCrawlFrequency: Number(event.target.value),
+                        }))
+                      }
+                      className="mt-2 w-full"
+                    />
+                  </label>
+                ) : null}
+              </div>
+
+              <div className="px-4 py-3">
+                <SettingsToggleRow
+                  label="Sit down"
+                  description={
+                    hasRandomSitVariants
+                      ? "Take breaks using assigned floor sit animations"
+                      : "No floor sit animations are assigned"
+                  }
+                  checked={behavior.allowRandomSit && hasRandomSitVariants}
+                  disabled={!hasRandomSitVariants}
+                  onChange={(checked) =>
+                    setRandomBehavior("allowRandomSit", checked)
+                  }
+                />
+
+                {showSitVariantPicker ? (
+                  <div
+                    className={`mt-3 transition ${
+                      behavior.allowRandomSit ? "" : "opacity-45"
+                    }`}
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {visibleSitOptions.map((option) => {
+                        const selected = behavior.randomSitActions.includes(
+                          option.action,
+                        );
+
+                        return (
+                          <button
+                            key={option.action}
+                            type="button"
+                            aria-pressed={selected}
+                            disabled={!behavior.allowRandomSit}
+                            title={option.description}
+                            onClick={() =>
+                              toggleRandomSitAction(option.action, !selected)
+                            }
+                            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:cursor-default ${
+                              selected
+                                ? "border-white bg-white text-black"
+                                : "border-neutral-700 bg-neutral-900 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {behavior.allowRandomSit &&
+                    behavior.randomSitActions.length === 0 ? (
+                      <p className="mt-2 text-xs text-amber-300">
+                        Pick at least one sitting style or random sitting stays
+                        off.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="px-4 py-3">
+                <SettingsToggleRow
+                  label="Climb walls"
+                  description="Move on vertical edges after you attach it"
+                  checked={behavior.allowRandomWallClimb}
+                  onChange={(checked) =>
+                    setRandomBehavior("allowRandomWallClimb", checked)
+                  }
+                />
+              </div>
+
+              <div className="px-4 py-3">
+                <SettingsToggleRow
+                  label="Crawl on ceilings"
+                  description="Move under windows after you attach it"
+                  checked={behavior.allowRandomCeilingCrawl}
+                  onChange={(checked) =>
+                    setRandomBehavior("allowRandomCeilingCrawl", checked)
+                  }
+                />
+              </div>
+
+              <div className="px-4 py-3">
+                <SettingsToggleRow
+                  label="Talk"
+                  description="Show dialogue on its own"
+                  checked={behavior.allowRandomDialogue}
+                  onChange={(checked) =>
+                    setRandomBehavior("allowRandomDialogue", checked)
+                  }
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">

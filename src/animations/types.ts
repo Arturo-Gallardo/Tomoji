@@ -19,6 +19,7 @@ export interface AnimationDefinition {
 export type CompanionAction =
   | "idle"
   | "walk"
+  | "floorCrawl"
   | "sit"
   | "sitAlt"
   | "sitAlt2"

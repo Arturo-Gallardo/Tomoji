@@ -20,6 +20,7 @@ import {
 } from "./characterLibrary";
 import { ensureBuiltinCharacterStored } from "./builtinCharacter";
 import { getAppSettings } from "./appSettings";
+import { normalizeBehaviorSettings } from "./behaviorSettings";
 import { instancesFilePath } from "./fs/appPaths";
 import { pathExists, readJson, writeJson } from "./fs/fileSystemAdapter";
 
@@ -303,7 +304,7 @@ function instanceFromCharacter(
     muted: false,
     currentAnimation: "idle",
     behaviorState: "idle",
-    behaviorSettings: { ...manifest.behaviorSettings },
+    behaviorSettings: normalizeBehaviorSettings(manifest.behaviorSettings),
     dialogueSettings: { ...manifest.dialogueSettings },
   };
 }

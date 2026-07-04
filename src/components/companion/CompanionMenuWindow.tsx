@@ -28,6 +28,7 @@ export function CompanionMenuWindow() {
   const [undersideLocked, setUndersideLocked] = useState(false);
   const [frozen, setFrozen] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [canFloorCrawl, setCanFloorCrawl] = useState(false);
   const [animationsOpen, setAnimationsOpen] = useState(false);
   const [availableActions, setAvailableActions] = useState<
     CompanionMenuAnimationAction[]
@@ -55,6 +56,7 @@ export function CompanionMenuWindow() {
         undersideLocked: nextUndersideLocked,
         frozen: nextFrozen,
         muted: nextMuted,
+        canFloorCrawl: nextCanFloorCrawl = false,
         availableActions: nextAvailableActions = [],
         targetLabel: nextTarget,
       }) => {
@@ -62,6 +64,7 @@ export function CompanionMenuWindow() {
         setUndersideLocked(nextUndersideLocked);
         setFrozen(nextFrozen);
         setMuted(nextMuted);
+        setCanFloorCrawl(nextCanFloorCrawl);
         setAnimationsOpen(false);
         setAvailableActions(nextAvailableActions);
         setTargetLabel(nextTarget);
@@ -76,11 +79,16 @@ export function CompanionMenuWindow() {
     };
   }, []);
 
-  const travelItem = undersideLocked
-    ? { action: "crawlTo" as const, label: "Crawl to…" }
+  const travelItems = undersideLocked
+    ? [{ action: "crawlTo" as const, label: "Crawl to..." }]
     : wallLocked
-      ? { action: "climbTo" as const, label: "Climb to…" }
-      : { action: "walkTo" as const, label: "Walk to…" };
+      ? [{ action: "climbTo" as const, label: "Climb to..." }]
+      : [
+          { action: "walkTo" as const, label: "Walk to..." },
+          ...(canFloorCrawl
+            ? [{ action: "floorCrawlTo" as const, label: "Crawl to..." }]
+            : []),
+        ];
 
   const animationItems =
     wallLocked || undersideLocked
@@ -112,15 +120,18 @@ export function CompanionMenuWindow() {
         {muted ? "Unmute" : "Mute"}
       </button>
 
-      <button
-        type="button"
-        onClick={() => {
-          handleAction(travelItem.action);
-        }}
-        className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
-      >
-        {travelItem.label}
-      </button>
+      {travelItems.map((item) => (
+        <button
+          key={item.action}
+          type="button"
+          onClick={() => {
+            handleAction(item.action);
+          }}
+          className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+        >
+          {item.label}
+        </button>
+      ))}
 
       <button
         type="button"
@@ -140,7 +151,11 @@ export function CompanionMenuWindow() {
             onClick={() => {
               setAnimationsOpen((open) => {
                 const expanded = !open;
-                void resizeCompanionMenu(expanded, animationItems.length);
+                void resizeCompanionMenu(
+                  expanded,
+                  animationItems.length,
+                  canFloorCrawl ? 1 : 0,
+                );
                 return expanded;
               });
             }}

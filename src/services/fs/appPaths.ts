@@ -7,8 +7,8 @@ import { getAppDataDir, joinPath } from "./fileSystemAdapter";
 //   <appData>/settings.json
 //   <appData>/characters/beyond-birthday/manifest.json  (bundled pet, seeded on first run)
 //   <appData>/characters/<folder-name>/manifest.json
-//   <appData>/characters/<folder-name>/sprites/<category>/*.png
-//   <appData>/characters/<folder-name>/source/*.png
+//   <appData>/characters/<folder-name>/sprites/<category>/*.{png,jpg,webp,bmp}
+//   <appData>/characters/<folder-name>/source/*.{png,jpg,webp,bmp}
 
 export async function libraryFilePath(): Promise<string> {
   return joinPath(await getAppDataDir(), "library.json");

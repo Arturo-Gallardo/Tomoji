@@ -8,6 +8,10 @@ import type { ShimejiDraft, ShimejiSourceFrame } from "../types/shimejiDraft";
 import { getImageSize } from "../utils/imageSize";
 import { addCharacter, getCharacter, allocateNewTomojiFolderName } from "./characterLibrary";
 import {
+  DEFAULT_BEHAVIOR_SETTINGS,
+  normalizeBehaviorSettings,
+} from "./behaviorSettings";
+import {
   characterDirPath,
   characterManifestPath,
   characterSourcesDirPath,
@@ -32,12 +36,20 @@ const SHIMEJI_TICK_MS = 25;
 const DEFAULT_IMPORT_FPS = 8;
 const DEFAULT_FRAME_SIZE = 128;
 const MAX_AUTO_SCALE = 4;
+const SUPPORTED_IMAGE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "bmp",
+]);
 
 const ACTION_CATEGORY_CANDIDATES: Readonly<
   Partial<Record<AnimationCategory, readonly string[]>>
 > = {
   idle: ["Stand"],
   walk: ["Walk", "Run"],
+  floorCrawl: ["Creep"],
   sit: ["Sit", "SitAndLookAtMouse"],
   sitAlt: ["SitAndLookUp", "SitAndSpinHeadAction", "Sprawl"],
   sitAlt2: ["SitWithLegsUp", "SitWithLegsDown"],
@@ -52,7 +64,6 @@ const ACTION_CATEGORY_CANDIDATES: Readonly<
   climbCeiling: ["ClimbCeiling"],
   emote: ["SitAndSpinHeadAction"],
   emote2: ["SitAndDangleLegs"],
-  emote3: ["Creep"],
   emote4: ["ThrowIe"],
   emote5: ["HitIe"],
 };
@@ -83,11 +94,24 @@ export async function pickShimejiFolder(): Promise<string | null> {
   return pickDirectory("Select the Shimeji folder");
 }
 
-// lists the png frames inside a Shimeji img folder, sorted by name.
+// lists supported image frames inside a Shimeji img folder, sorted by name.
 export async function listShimejiFrames(
   dir: string,
 ): Promise<ShimejiSourceFrame[]> {
-  return listPngFramesRecursive(dir);
+  return listImageFramesRecursive(dir);
+}
+
+function imageExtension(pathOrName: string): string | null {
+  const match = pathOrName.match(/\.([^./\\]+)$/);
+  const extension = match?.[1]?.toLowerCase();
+
+  return extension && SUPPORTED_IMAGE_EXTENSIONS.has(extension)
+    ? extension
+    : null;
+}
+
+function isSupportedImageFile(name: string): boolean {
+  return imageExtension(name) !== null;
 }
 
 async function listCharacterSpriteSources(
@@ -119,7 +143,7 @@ async function listCharacterSpriteSources(
         continue;
       }
 
-      if (!entry.name.toLowerCase().endsWith(".png")) {
+      if (!isSupportedImageFile(entry.name)) {
         continue;
       }
 
@@ -155,7 +179,9 @@ function buildAnimations(
     animations[category] = {
       fps: assignment.fps,
       frames: assignment.frames.map((source, index) => ({
-        src: `sprites/${category}/${index}.png`,
+        src: `sprites/${category}/${index}.${
+          imageExtension(source) ?? "png"
+        }`,
         source: sourcePathByInput.get(source),
         durationTicks: assignment.durationTicks?.[index],
       })),
@@ -165,7 +191,7 @@ function buildAnimations(
   return animations;
 }
 
-async function listPngFramesRecursive(dir: string): Promise<ShimejiSourceFrame[]> {
+async function listImageFramesRecursive(dir: string): Promise<ShimejiSourceFrame[]> {
   if (!(await pathExists(dir))) {
     return [];
   }
@@ -180,7 +206,7 @@ async function listPngFramesRecursive(dir: string): Promise<ShimejiSourceFrame[]
         continue;
       }
 
-      if (!entry.name.toLowerCase().endsWith(".png")) {
+      if (!isSupportedImageFile(entry.name)) {
         continue;
       }
 
@@ -200,7 +226,7 @@ async function listPngFramesRecursive(dir: string): Promise<ShimejiSourceFrame[]
 }
 
 function isShimejiFrameName(name: string): boolean {
-  return /^shime\d+[a-z]*\.png$/i.test(name);
+  return /^shime\d+[a-z]*\.[^.]+$/i.test(name) && isSupportedImageFile(name);
 }
 
 async function listDirsRecursive(dir: string): Promise<string[]> {
@@ -261,7 +287,7 @@ async function findConfigDirs(rootDir: string): Promise<string[]> {
 }
 
 async function findShimejiPackage(inputDir: string): Promise<ShimejiPackage | null> {
-  const sources = await listPngFramesRecursive(inputDir);
+  const sources = await listImageFramesRecursive(inputDir);
   const configDirs = await findConfigDirs(inputDir);
 
   if (configDirs.length > 0) {
@@ -544,8 +570,13 @@ function framesForClassicNumbers(
   const frames: ShimejiSourceFrame[] = [];
 
   for (const number of numbers) {
-    const pattern = new RegExp(`^shime${number}[a-z]*\\.png$`, "i");
-    frames.push(...sources.filter((source) => pattern.test(source.name)));
+    const pattern = new RegExp(`^shime${number}[a-z]*\\.[^.]+$`, "i");
+    frames.push(
+      ...sources.filter(
+        (source) =>
+          pattern.test(source.name) && isSupportedImageFile(source.name),
+      ),
+    );
   }
 
   return frames
@@ -578,6 +609,7 @@ function fillClassicAssignments(
   assignClassicFrames(assignments, sources, "idle", [1]);
   assignClassicFrames(assignments, sources, "walk", [2]);
   assignClassicFrames(assignments, sources, "walk", [1]);
+  assignClassicFrames(assignments, sources, "floorCrawl", [20, 21]);
   assignClassicFrames(assignments, sources, "sit", [11]);
   assignClassicFrames(assignments, sources, "sitAlt", [26, 27, 28, 29]);
   assignClassicFrames(assignments, sources, "sitAlt2", [30, 31, 32]);
@@ -599,8 +631,6 @@ function fillClassicAssignments(
   assignClassicFrames(assignments, sources, "climbCeiling", [24, 25, 23]);
   assignClassicFrames(assignments, sources, "emote", [26, 27, 28, 29]);
   assignClassicFrames(assignments, sources, "emote2", [30, 31, 32, 33]);
-  assignClassicFrames(assignments, sources, "emote3", [20, 21]);
-  assignClassicFrames(assignments, sources, "emote4", [22]);
 }
 
 export async function buildShimejiDraftFromFolder(
@@ -633,7 +663,7 @@ export async function buildShimejiDraftFromFolder(
     name: await getBasename(shimeji.spriteDir),
     dialogueLines: [],
     dialogueFrequency: 0.2,
-    behavior: { movementSpeed: 1, actionFrequency: 0.5, dialogueFrequency: 0.2 },
+    behavior: { ...DEFAULT_BEHAVIOR_SETTINGS },
     scale: defaultScaleForFrameHeight(measuredFrame.height),
     speed: averageWalkSpeed(actions.get("Walk")),
     frameWidth: measuredFrame.width,
@@ -704,7 +734,10 @@ async function writeDraftSprites(
 
       for (let index = 0; index < assignment.frames.length; index += 1) {
         const source = assignment.frames[index];
-        const dest = await joinPath(categoryDir, `${index}.png`);
+        const dest = await joinPath(
+          categoryDir,
+          `${index}.${imageExtension(source) ?? "png"}`,
+        );
         await copyFile(source, dest);
       }
     }
@@ -802,7 +835,7 @@ export async function loadCharacterDraft(
     name: manifest.name,
     dialogueLines: manifest.dialogueSettings.lines,
     dialogueFrequency: manifest.dialogueSettings.frequency,
-    behavior: manifest.behaviorSettings,
+    behavior: normalizeBehaviorSettings(manifest.behaviorSettings),
     scale: manifest.defaultScale,
     speed: manifest.defaultSpeed,
     frameWidth: manifest.frameWidth,
@@ -834,8 +867,8 @@ export async function saveCharacterDraft(
 }
 
 // converts the wizard draft into the Tomoji folder structure: copies the
-// chosen pngs into characters/<id>/sprites/<category>/<n>.png, keeps editable
-// originals in characters/<id>/source, and writes a valid manifest.json.
+// chosen image files into characters/<id>/sprites/<category>/<n>.<ext>, keeps
+// editable originals in characters/<id>/source, and writes a valid manifest.json.
 export async function convertShimejiDraft(
   draft: ShimejiDraft,
 ): Promise<string> {
@@ -855,7 +888,7 @@ export async function convertShimejiDraft(
     frameWidth: draft.frameWidth,
     frameHeight: draft.frameHeight,
     animations: buildAnimations(draft, sourcePathByInput),
-    behaviorSettings: draft.behavior,
+    behaviorSettings: normalizeBehaviorSettings(draft.behavior),
     dialogueSettings: {
       lines: draft.dialogueLines,
       frequency: draft.dialogueFrequency,

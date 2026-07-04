@@ -11,6 +11,7 @@ export type CompanionMenuAnimationAction =
 
 export type CompanionMenuAction =
   | "walkTo"
+  | "floorCrawlTo"
   | "crawlTo"
   | "climbTo"
   | "turnAround"
@@ -19,7 +20,7 @@ export type CompanionMenuAction =
   | "toggleMute"
   | "turnOff";
 
-export type TargetPickerMode = "walk" | "crawl" | "climb";
+export type TargetPickerMode = "walk" | "floorCrawl" | "crawl" | "climb";
 
 export interface CompanionMenuActionPayload {
   action: CompanionMenuAction;
@@ -30,6 +31,7 @@ export interface CompanionMenuConfigPayload {
   undersideLocked: boolean;
   frozen: boolean;
   muted: boolean;
+  canFloorCrawl: boolean;
   availableActions: CompanionMenuAnimationAction[];
   targetLabel: string;
 }

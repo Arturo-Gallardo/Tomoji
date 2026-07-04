@@ -4,6 +4,7 @@ import {
   loadCharacterDraft,
   pickShimejiImgFolder,
 } from "../services/shimejiImporter";
+import { DEFAULT_BEHAVIOR_SETTINGS } from "../services/behaviorSettings";
 import { ANIMATION_CATEGORIES } from "../types/character";
 import type { AnimationCategory, BehaviorSettings } from "../types/character";
 import type {
@@ -31,7 +32,7 @@ function initialDraft(): ShimejiDraft {
     name: "",
     dialogueLines: [],
     dialogueFrequency: 0.2,
-    behavior: { movementSpeed: 1, actionFrequency: 0.5, dialogueFrequency: 0.2 },
+    behavior: { ...DEFAULT_BEHAVIOR_SETTINGS },
     scale: 1,
     speed: 2,
     frameWidth: DEFAULT_FRAME_SIZE,
@@ -43,7 +44,7 @@ function isLikelySpriteFrame(source: { name: string }): boolean {
   const name = source.name.toLowerCase();
   return (
     name.startsWith("shime") &&
-    name !== "icon.png" &&
+    !name.startsWith("icon.") &&
     !name.startsWith("banner")
   );
 }
@@ -89,7 +90,7 @@ export function useShimejiDraft() {
     }
   }, []);
 
-  // merges new pngs into the picker without clearing assignments
+  // merges new image files into the picker without clearing assignments
   const mergeImgFolder = useCallback(async () => {
     const dir = await pickShimejiImgFolder();
     if (dir === null) {
@@ -135,7 +136,8 @@ export function useShimejiDraft() {
       let frameHeight = DEFAULT_FRAME_SIZE;
 
       const sizeSource =
-        sources.find(isLikelySpriteFrame) ?? sources.find((source) => source.name !== "icon.png");
+        sources.find(isLikelySpriteFrame) ??
+        sources.find((source) => !source.name.toLowerCase().startsWith("icon."));
 
       if (sizeSource) {
         try {
@@ -143,7 +145,7 @@ export function useShimejiDraft() {
           frameWidth = size.width;
           frameHeight = size.height;
         } catch {
-          // fall back to the default frame size if the png can't be measured
+          // fall back to the default frame size if the image can't be measured
         }
       }
 

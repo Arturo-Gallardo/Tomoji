@@ -18,6 +18,7 @@ export async function showCompanionMenu(
   undersideLocked: boolean,
   frozen: boolean,
   muted: boolean,
+  canFloorCrawl: boolean,
   availableActions: readonly CompanionMenuAnimationAction[],
 ): Promise<void> {
   await invoke("show_companion_menu", {
@@ -27,6 +28,7 @@ export async function showCompanionMenu(
     undersideLocked,
     frozen,
     muted,
+    canFloorCrawl,
     availableActions,
   });
 }
@@ -38,8 +40,13 @@ export async function hideCompanionMenu(): Promise<void> {
 export async function resizeCompanionMenu(
   expanded: boolean,
   animationItemCount: number,
+  extraItemCount = 0,
 ): Promise<void> {
-  await invoke("resize_companion_menu", { expanded, animationItemCount });
+  await invoke("resize_companion_menu", {
+    expanded,
+    animationItemCount,
+    extraItemCount,
+  });
 }
 
 export async function emitCompanionMenuAction(

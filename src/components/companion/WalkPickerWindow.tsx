@@ -62,7 +62,7 @@ export function WalkPickerWindow() {
 
     void submitTargetPicker(
       targetLabel,
-      mode === "crawl" ? "crawl" : "walk",
+      mode === "crawl" || mode === "floorCrawl" ? mode : "walk",
       pointer.x,
       0,
     );
@@ -71,7 +71,7 @@ export function WalkPickerWindow() {
   const cursorClass =
     mode === "climb"
       ? "cursor-ns-resize"
-      : mode === "crawl"
+      : mode === "crawl" || mode === "floorCrawl"
         ? "cursor-ew-resize"
         : "cursor-crosshair";
 

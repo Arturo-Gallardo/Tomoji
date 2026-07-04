@@ -10,7 +10,8 @@ export function SelectImgFolderStep({ controller }: SelectImgFolderStepProps) {
   return (
     <div className="space-y-8">
       <p className="max-w-xl text-sm leading-relaxed text-neutral-400">
-        Pick a folder of PNG frames (Shimeji folders usually keep them under
+        Pick a folder of image frames (PNG recommended; JPG, WebP, and BMP
+        also work. Shimeji folders usually keep them under
         <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">
           img
         </code>

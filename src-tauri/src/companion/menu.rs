@@ -16,6 +16,7 @@ pub struct CompanionMenuConfigPayload {
     pub underside_locked: bool,
     pub frozen: bool,
     pub muted: bool,
+    pub can_floor_crawl: bool,
     pub available_actions: Vec<String>,
     // the companion window the menu should route its actions back to
     pub target_label: String,
@@ -121,6 +122,7 @@ pub fn show_companion_menu(
     underside_locked: bool,
     frozen: bool,
     muted: bool,
+    can_floor_crawl: bool,
     available_actions: Vec<String>,
 ) -> Result<(), String> {
     let app = caller.app_handle();
@@ -131,7 +133,13 @@ pub fn show_companion_menu(
         .ok_or_else(|| "companion menu window not found".to_string())?;
 
     let has_animation_menu = !wall_locked && !underside_locked && !available_actions.is_empty();
-    let item_count = 5 + if has_animation_menu { 1 } else { 0 };
+    let item_count = 5
+        + if !wall_locked && !underside_locked && can_floor_crawl {
+            1
+        } else {
+            0
+        }
+        + if has_animation_menu { 1 } else { 0 };
     let menu_height = MENU_VERTICAL_PADDING + item_count as f64 * MENU_ITEM_HEIGHT;
     let scale_factor = window
         .scale_factor()
@@ -160,6 +168,7 @@ pub fn show_companion_menu(
                 underside_locked,
                 frozen,
                 muted,
+                can_floor_crawl,
                 available_actions,
                 target_label,
             },
@@ -190,6 +199,7 @@ pub fn resize_companion_menu(
     app: AppHandle,
     expanded: bool,
     animation_item_count: usize,
+    extra_item_count: usize,
 ) -> Result<(), String> {
     let window = app
         .get_webview_window(MENU_WINDOW_LABEL)
@@ -198,7 +208,7 @@ pub fn resize_companion_menu(
         .lock()
         .map_err(|error| format!("failed to lock companion menu anchor: {error}"))?
         .ok_or_else(|| "companion menu anchor not found".to_string())?;
-    let item_count = 6 + if expanded { animation_item_count } else { 0 };
+    let item_count = 6 + extra_item_count + if expanded { animation_item_count } else { 0 };
     let menu_height =
         (MENU_VERTICAL_PADDING + item_count as f64 * MENU_ITEM_HEIGHT).min(MAX_MENU_HEIGHT);
     let bounds = query_desktop_bounds()?;

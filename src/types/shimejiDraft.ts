@@ -1,6 +1,6 @@
 import type { AnimationCategory, BehaviorSettings } from "./character";
 
-// a single source png picked from the Shimeji img folder
+// a single source image picked from the Shimeji img folder
 export interface ShimejiSourceFrame {
   name: string;
   path: string;

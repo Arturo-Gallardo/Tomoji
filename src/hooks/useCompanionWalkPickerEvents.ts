@@ -6,6 +6,7 @@ import {
 
 interface UseCompanionWalkPickerEventsOptions {
   onSelectWalkTarget: (anchorX: number) => void;
+  onSelectFloorCrawlTarget: (anchorX: number) => void;
   onSelectCrawlTarget: (anchorX: number) => void;
   onSelectClimbTarget: (anchorY: number) => void;
   onCancel: () => void;
@@ -13,6 +14,7 @@ interface UseCompanionWalkPickerEventsOptions {
 
 export function useCompanionWalkPickerEvents({
   onSelectWalkTarget,
+  onSelectFloorCrawlTarget,
   onSelectCrawlTarget,
   onSelectClimbTarget,
   onCancel,
@@ -29,6 +31,11 @@ export function useCompanionWalkPickerEvents({
 
       if (mode === "crawl") {
         onSelectCrawlTarget(anchorX);
+        return;
+      }
+
+      if (mode === "floorCrawl") {
+        onSelectFloorCrawlTarget(anchorX);
         return;
       }
 
@@ -50,6 +57,7 @@ export function useCompanionWalkPickerEvents({
   }, [
     onCancel,
     onSelectClimbTarget,
+    onSelectFloorCrawlTarget,
     onSelectCrawlTarget,
     onSelectWalkTarget,
   ]);

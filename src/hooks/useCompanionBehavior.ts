@@ -81,6 +81,7 @@ interface UseCompanionBehaviorResult {
   playMenuAnimation: (action: CompanionMenuAnimationAction) => void;
   turnAround: () => void;
   walkToAnchorX: (screenX: number) => void;
+  floorCrawlToAnchorX: (screenX: number) => void;
   crawlToAnchorX: (screenX: number) => void;
   climbToAnchorY: (screenY: number) => void;
   isFrozen: boolean;
@@ -109,13 +110,15 @@ export function useCompanionBehavior({
   behaviorSettings,
   isMuted = false,
 }: UseCompanionBehaviorOptions): UseCompanionBehaviorResult {
-  const behaviorSettingsRef = useRef(
-    normalizeBehaviorSettings(behaviorSettings),
+  const normalizedBehaviorSettings = useMemo(
+    () => normalizeBehaviorSettings(behaviorSettings),
+    [behaviorSettings],
   );
+  const behaviorSettingsRef = useRef(normalizedBehaviorSettings);
 
   useEffect(() => {
-    behaviorSettingsRef.current = normalizeBehaviorSettings(behaviorSettings);
-  }, [behaviorSettings]);
+    behaviorSettingsRef.current = normalizedBehaviorSettings;
+  }, [normalizedBehaviorSettings]);
   const handleSurfaceLockLostRef = useRef<() => void>(() => {});
   const usesTitleBarSitAnchorRef = useRef(false);
 
@@ -338,7 +341,7 @@ export function useCompanionBehavior({
       targetXRef.current = null;
       setDialogueText(null);
       sittingModeRef.current = mode;
-      const sitAction = requestedAction ?? registry.pickFloorSitAction();
+      const sitAction = requestedAction ?? registry.pickFloorSitAction() ?? "sit";
       sittingActionRef.current = sitAction;
       setBehaviorState("sitting");
       setAction(sitAction);
@@ -724,6 +727,19 @@ export function useCompanionBehavior({
     setAction("walk");
   }, []);
 
+  const startFloorCrawlingTo = useCallback((targetX: number) => {
+    const currentX = anchorXRef.current;
+    const direction: FacingDirection = targetX >= currentX ? "right" : "left";
+
+    sittingModeRef.current = null;
+    targetYRef.current = null;
+    targetXRef.current = targetX;
+    walkingCanAttachRef.current = false;
+    setFacing(direction);
+    setBehaviorState("walking");
+    setAction("floorCrawl");
+  }, []);
+
   const startCrawlingTo = useCallback((targetX: number) => {
     const currentX = anchorXRef.current;
     const direction: FacingDirection = targetX >= currentX ? "right" : "left";
@@ -793,6 +809,40 @@ export function useCompanionBehavior({
       startWalkingTo(targetX);
     },
     [clampAnchorX, startWalkingTo, unfreeze],
+  );
+
+  const floorCrawlToAnchorX = useCallback(
+    (screenX: number) => {
+      unfreeze();
+
+      if (
+        isWallLockedRef.current ||
+        isUndersideLockedRef.current ||
+        !registry.canFloorCrawl
+      ) {
+        return;
+      }
+
+      const currentState = behaviorStateRef.current;
+      if (
+        currentState === "dragging" ||
+        currentState === "falling" ||
+        currentState === "bouncing" ||
+        currentState === "climbing"
+      ) {
+        return;
+      }
+
+      if (currentState === "dialoguing") {
+        setDialogueText(null);
+      }
+
+      targetYRef.current = null;
+
+      const targetX = clampAnchorX(screenX);
+      startFloorCrawlingTo(targetX);
+    },
+    [clampAnchorX, registry.canFloorCrawl, startFloorCrawlingTo, unfreeze],
   );
 
   const crawlToAnchorX = useCallback(
@@ -896,6 +946,10 @@ export function useCompanionBehavior({
       isWallLocked ||
       isUndersideLocked ||
       isFrozen ||
+      (!behaviorSettingsRef.current.allowRandomWalk &&
+        (!behaviorSettingsRef.current.allowRandomFloorCrawl ||
+          !registry.canFloorCrawl) &&
+        !behaviorSettingsRef.current.allowRandomSit) ||
       behaviorSettingsRef.current.actionFrequency <= 0
     ) {
       return;
@@ -908,8 +962,35 @@ export function useCompanionBehavior({
         return;
       }
 
-      if (Math.random() < AUTONOMOUS_SIT_CHANCE * actionFrequency) {
-        startSitting("auto");
+      const canSit = behaviorSettingsRef.current.allowRandomSit;
+      const canWalk = behaviorSettingsRef.current.allowRandomWalk;
+      const canFloorCrawl =
+        behaviorSettingsRef.current.allowRandomFloorCrawl &&
+        registry.canFloorCrawl;
+      const randomSitAction = registry.pickFloorSitAction(
+        behaviorSettingsRef.current.randomSitActions,
+      );
+      const crawlTarget = canFloorCrawl ? pickWalkTarget() : null;
+
+      if (
+        crawlTarget !== null &&
+        Math.random() < behaviorSettingsRef.current.floorCrawlFrequency
+      ) {
+        startFloorCrawlingTo(crawlTarget);
+        return;
+      }
+
+      if (
+        canSit &&
+        randomSitAction !== null &&
+        (!canWalk ||
+          Math.random() < AUTONOMOUS_SIT_CHANCE * actionFrequency)
+      ) {
+        startSitting("auto", randomSitAction);
+        return;
+      }
+
+      if (!canWalk) {
         return;
       }
 
@@ -925,15 +1006,17 @@ export function useCompanionBehavior({
       window.clearTimeout(timeoutId);
     };
   }, [
-    behaviorSettings,
     behaviorState,
     isFrozen,
     isReady,
     isUndersideLocked,
     isWallLocked,
     pickWalkTarget,
+    registry,
+    startFloorCrawlingTo,
     startSitting,
     startWalkingTo,
+    normalizedBehaviorSettings,
   ]);
 
   // once manually attached to a wall, keep normal autonomous wall movement
@@ -943,6 +1026,7 @@ export function useCompanionBehavior({
       behaviorState !== "idle" ||
       !isWallLocked ||
       isFrozen ||
+      !behaviorSettingsRef.current.allowRandomWallClimb ||
       behaviorSettingsRef.current.actionFrequency <= 0
     ) {
       return;
@@ -978,12 +1062,12 @@ export function useCompanionBehavior({
       window.clearTimeout(timeoutId);
     };
   }, [
-    behaviorSettings,
     behaviorState,
     getVerticalClimbRange,
     isFrozen,
     isReady,
     isWallLocked,
+    normalizedBehaviorSettings,
     startClimbingTo,
   ]);
 
@@ -994,6 +1078,7 @@ export function useCompanionBehavior({
       behaviorState !== "idle" ||
       !isUndersideLocked ||
       isFrozen ||
+      !behaviorSettingsRef.current.allowRandomCeilingCrawl ||
       behaviorSettingsRef.current.actionFrequency <= 0
     ) {
       return;
@@ -1022,11 +1107,11 @@ export function useCompanionBehavior({
       window.clearTimeout(timeoutId);
     };
   }, [
-    behaviorSettings,
     behaviorState,
     isFrozen,
     isReady,
     isUndersideLocked,
+    normalizedBehaviorSettings,
     pickWalkTarget,
     startCrawlingTo,
   ]);
@@ -1061,6 +1146,7 @@ export function useCompanionBehavior({
   }, [behaviorState, isFrozen, returnToIdle]);
 
   useAutonomousDialogue({
+    isEnabled: normalizedBehaviorSettings.allowRandomDialogue,
     isReady,
     isFrozen,
     isFrozenRef,
@@ -1226,6 +1312,7 @@ export function useCompanionBehavior({
         isUndersideLocked,
         isFrozen,
         isMuted,
+        registry.canFloorCrawl,
         registry.contextMenuActions,
       );
     },
@@ -1235,6 +1322,7 @@ export function useCompanionBehavior({
       isMuted,
       isUndersideLocked,
       isWallLocked,
+      registry.canFloorCrawl,
       registry.contextMenuActions,
     ],
   );
@@ -1261,6 +1349,7 @@ export function useCompanionBehavior({
     playMenuAnimation,
     turnAround,
     walkToAnchorX,
+    floorCrawlToAnchorX,
     crawlToAnchorX,
     climbToAnchorY,
     isFrozen,

@@ -29,8 +29,8 @@ function FolderTreeExample() {
       ├─ conf/
       │  ├─ actions.xml     ← required
       │  └─ behaviors.xml
-      ├─ shime1.png
-      ├─ shime2.png
+      ├─ shime1.png     ← PNG recommended; JPG/WebP/BMP also work
+      ├─ shime2.webp
       └─ ...`}
       </pre>
       <p className="mt-3 text-xs text-neutral-500">

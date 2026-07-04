@@ -127,6 +127,7 @@ export function useCompanionAnimation({
 
       if (
         (activeAction === "walk" ||
+          activeAction === "floorCrawl" ||
           activeAction === "climbCeiling") &&
         onTickRef.current
       ) {

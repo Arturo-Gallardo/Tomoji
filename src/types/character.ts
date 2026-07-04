@@ -1,7 +1,7 @@
 import type { Velocity } from "../animations/types";
 
 // a single frame of an animation. src is relative to the character folder root
-// for imported characters (e.g. "sprites/walk/0.png") or a resolvable url.
+// for imported characters (e.g. "sprites/walk/0.png" or ".gif") or a resolvable url.
 export interface AnimationFrame {
   src: string;
   // editable source-library frame used to regenerate assigned animation files
@@ -25,6 +25,7 @@ export interface AnimationDefinition {
 export type AnimationCategory =
   | "idle"
   | "walk"
+  | "floorCrawl"
   | "sit"
   | "sitAlt"
   | "sitAlt2"
@@ -53,6 +54,7 @@ export type AnimationCategory =
 export const ANIMATION_CATEGORIES: readonly AnimationCategory[] = [
   "idle",
   "walk",
+  "floorCrawl",
   "sit",
   "sitAlt",
   "sitAlt2",
@@ -105,6 +107,8 @@ export function hasRequiredAnimationAssignments(
   );
 }
 
+export type RandomSitAction = "sit" | "sitAlt" | "sitAlt2";
+
 export interface BehaviorSettings {
   // multiplier applied to the character base walk velocity
   movementSpeed: number;
@@ -112,6 +116,14 @@ export interface BehaviorSettings {
   actionFrequency: number;
   // 0..1 likelihood the companion speaks on its own
   dialogueFrequency: number;
+  allowRandomWalk: boolean;
+  allowRandomFloorCrawl: boolean;
+  floorCrawlFrequency: number;
+  allowRandomSit: boolean;
+  randomSitActions: RandomSitAction[];
+  allowRandomWallClimb: boolean;
+  allowRandomCeilingCrawl: boolean;
+  allowRandomDialogue: boolean;
 }
 
 export interface DialogueSettings {

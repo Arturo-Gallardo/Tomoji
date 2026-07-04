@@ -40,6 +40,13 @@ export const ANIMATION_CATEGORY_META: Record<
       "Recommended: three frames (stand, step, alt step). Imported characters loop frames in assignment order (1→2→3→1…). The built-in pet uses the classic shimeji 2→1→3→1 cycle.",
     group: "ground",
   },
+  floorCrawl: {
+    id: "floorCrawl",
+    label: "Floor crawl",
+    description:
+      "Low crawl/creep along the floor. Shimeji Creep imports here automatically. Frames loop while the Tomoji moves sideways.",
+    group: "ground",
+  },
   sit: {
     id: "sit",
     label: "Sit — floor (primary)",
@@ -210,7 +217,7 @@ export const ANIMATION_CATEGORY_GROUPS: AnimationCategoryGroup[] = [
   {
     id: "ground",
     label: "Ground",
-    categories: ["idle", "walk"],
+    categories: ["idle", "walk", "floorCrawl"],
   },
   {
     id: "sit",
