@@ -31,6 +31,7 @@ const MIN_IDLE_MS = 3000;
 const MAX_IDLE_MS = 8000;
 const MIN_WALK_DISTANCE = 80;
 const SNAP_HOVER_DURATION_MS = 500;
+const MOVEMENT_SPEED_SCALE = 2;
 
 // shimeji-style floor idle: sometimes sit instead of walking
 const AUTONOMOUS_SIT_CHANCE = 0.32;
@@ -425,6 +426,7 @@ export function useCompanionBehavior({
     }
 
     targetXRef.current = null;
+    targetYRef.current = null;
     setFallVelocity({ x: 0, y: 2 });
     setBehaviorState("falling");
     setAction("fall");
@@ -567,7 +569,9 @@ export function useCompanionBehavior({
     const wasFalling = currentState === "falling";
 
     targetXRef.current = null;
+    targetYRef.current = null;
     isDraggingRef.current = true;
+    sittingModeRef.current = null;
     releaseSurfaceLockForDrag();
     clearTitleBarLockHint();
     setDialogueText(null);
@@ -666,6 +670,7 @@ export function useCompanionBehavior({
       behaviorState === "walking" ||
       behaviorState === "climbing" ||
       behaviorState === "sitting" ||
+      behaviorState === "emoting" ||
       behaviorState === "dialoguing" ||
       behaviorState === "falling");
 
@@ -1123,7 +1128,8 @@ export function useCompanionBehavior({
       const adjustedDelta =
         Math.abs(deltaY) *
         direction *
-        behaviorSettingsRef.current.movementSpeed;
+        behaviorSettingsRef.current.movementSpeed *
+        MOVEMENT_SPEED_SCALE;
       const nextY = currentY + adjustedDelta;
       const reachedTarget =
         (direction < 0 && nextY <= targetY) ||
@@ -1149,7 +1155,9 @@ export function useCompanionBehavior({
       }
 
       const adjustedDelta =
-        deltaX * behaviorSettingsRef.current.movementSpeed;
+        deltaX *
+        behaviorSettingsRef.current.movementSpeed *
+        MOVEMENT_SPEED_SCALE;
       const currentX = anchorXRef.current;
       const targetX = targetXRef.current;
       const nextX = currentX + adjustedDelta;
@@ -1167,7 +1175,13 @@ export function useCompanionBehavior({
         void tryFinishWalkAtWall(clampAnchorX(currentX));
       }
     },
-    [behaviorState, clampAnchorX, facing, moveBy, tryFinishWalkAtWall],
+    [
+      behaviorState,
+      clampAnchorX,
+      facing,
+      moveBy,
+      tryFinishWalkAtWall,
+    ],
   );
 
   const onAnimationCycleComplete = useCallback(

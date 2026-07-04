@@ -57,13 +57,13 @@ export function ShimejiImportWizard({
       header={
         <div className="space-y-4">
           <TomojiPageHeader
-            title="Import Shimeji"
+            title="Create Tomoji"
             onBack={onClose}
             backLabel="Cancel"
           />
           <nav
             className="flex flex-wrap gap-2"
-            aria-label="Import steps"
+            aria-label="Create Tomoji steps"
           >
             {STEP_TITLES.map((title, index) => (
               <span

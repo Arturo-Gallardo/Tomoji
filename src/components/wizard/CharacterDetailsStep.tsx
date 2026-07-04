@@ -43,12 +43,12 @@ export function CharacterDetailsStep({ controller }: CharacterDetailsStepProps) 
           <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
             Movement speed: {draft.speed.toFixed(1)} px/tick
           </span>
-          <input
-            type="range"
-            min={0.5}
-            max={6}
-            step={0.5}
-            value={draft.speed}
+            <input
+              type="range"
+              min={0.5}
+            max={12}
+              step={0.5}
+              value={draft.speed}
             onChange={(event) => setSpeed(Number(event.target.value))}
             className="mt-1 w-full"
           />
@@ -58,12 +58,12 @@ export function CharacterDetailsStep({ controller }: CharacterDetailsStepProps) 
           <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
             Scale: {draft.scale.toFixed(2)}x
           </span>
-          <input
-            type="range"
-            min={0.5}
-            max={2}
-            step={0.05}
-            value={draft.scale}
+            <input
+              type="range"
+              min={0.5}
+            max={4}
+              step={0.05}
+              value={draft.scale}
             onChange={(event) => setScale(Number(event.target.value))}
             className="mt-1 w-full"
           />

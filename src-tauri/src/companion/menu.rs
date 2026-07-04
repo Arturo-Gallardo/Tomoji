@@ -131,7 +131,7 @@ pub fn show_companion_menu(
         .ok_or_else(|| "companion menu window not found".to_string())?;
 
     let has_animation_menu = !wall_locked && !underside_locked && !available_actions.is_empty();
-    let item_count = if has_animation_menu { 6 } else { 5 };
+    let item_count = 5 + if has_animation_menu { 1 } else { 0 };
     let menu_height = MENU_VERTICAL_PADDING + item_count as f64 * MENU_ITEM_HEIGHT;
     let scale_factor = window
         .scale_factor()

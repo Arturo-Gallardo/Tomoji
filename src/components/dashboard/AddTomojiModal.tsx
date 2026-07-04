@@ -23,8 +23,7 @@ export function AddTomojiModal({
     {
       id: "create",
       label: "Create New",
-      description: "Build a Tomoji from scratch (coming soon)",
-      disabled: true,
+      description: "Pick frames manually and build animations",
       onSelect: onCreateNew,
     },
     {
@@ -36,7 +35,7 @@ export function AddTomojiModal({
     {
       id: "import-shimeji",
       label: "Import Shimeji",
-      description: "Convert a Shimeji img folder into a Tomoji",
+      description: "Auto-convert a full Shimeji folder",
       onSelect: onImportShimeji,
     },
   ];

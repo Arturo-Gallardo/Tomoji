@@ -111,12 +111,12 @@ export function CharacterSettingsEditor({
             <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
               Scale: {scale.toFixed(2)}x
             </span>
-            <input
-              type="range"
-              min={0.5}
-              max={2}
-              step={0.05}
-              value={scale}
+              <input
+                type="range"
+                min={0.5}
+              max={4}
+                step={0.05}
+                value={scale}
               onChange={(event) => setScale(Number(event.target.value))}
               className="mt-2 w-full"
             />
@@ -145,12 +145,12 @@ export function CharacterSettingsEditor({
             <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
               Movement speed: {behavior.movementSpeed.toFixed(2)}x
             </span>
-            <input
-              type="range"
-              min={0.1}
-              max={3}
-              step={0.1}
-              value={behavior.movementSpeed}
+              <input
+                type="range"
+                min={0.1}
+              max={8}
+                step={0.1}
+                value={behavior.movementSpeed}
               onChange={(event) =>
                 setBehavior((current) => ({
                   ...current,

@@ -95,6 +95,10 @@ export async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(raw) as T;
 }
 
+export async function readText(path: string): Promise<string> {
+  return readTextFile(path);
+}
+
 export async function writeJson(path: string, data: unknown): Promise<void> {
   await ensureDir(await dirname(path));
   const tempPath = `${path}.${crypto.randomUUID()}.tmp`;

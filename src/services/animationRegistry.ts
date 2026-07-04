@@ -106,6 +106,15 @@ const LEAN_TIER_TO_CATEGORY: Record<GrabbedLeanTier, AnimationCategory> = {
   strongRight: "dragStrongRight",
 };
 
+const LEAN_TIER_FRAME_RATIO: Record<GrabbedLeanTier, number> = {
+  strongLeft: 0,
+  mildLeft: 0.2,
+  lightLeft: 0.5,
+  lightRight: 0.5,
+  mildRight: 0.8,
+  strongRight: 1,
+};
+
 // when reading older manifests that only had drag / thrown / climb buckets
 const LEGACY_CATEGORY_FALLBACKS: Partial<
   Record<AnimationCategory, readonly string[]>
@@ -350,9 +359,22 @@ async function buildImportedRegistry(
 
   const getGrabbedLeanFrame = (tier: GrabbedLeanTier): string => {
     const category = LEAN_TIER_TO_CATEGORY[tier];
-    const direct = firstFrame(category);
-    if (direct) {
-      return direct;
+    const data = categoryData.get(category);
+    if (data && data.frames.length > 0) {
+      if (data.frames.length === 1) {
+        return data.frames[0];
+      }
+
+      // Old imports may have stored the whole Shimeji Pinched strip in every
+      // lean bucket. Treat it as a pose strip: left -> neutral -> right.
+      const index = Math.min(
+        data.frames.length - 1,
+        Math.max(
+          0,
+          Math.round((data.frames.length - 1) * LEAN_TIER_FRAME_RATIO[tier]),
+        ),
+      );
+      return data.frames[index];
     }
 
     const lightLeft = firstFrame("dragLightLeft");

@@ -5,6 +5,7 @@ import {
   type CharacterManifest,
 } from "../types/character";
 import type { ShimejiDraft, ShimejiSourceFrame } from "../types/shimejiDraft";
+import { getImageSize } from "../utils/imageSize";
 import { addCharacter, getCharacter, allocateNewTomojiFolderName } from "./characterLibrary";
 import {
   characterDirPath,
@@ -22,27 +23,71 @@ import {
   pickDirectory,
   removePath,
   renamePath,
+  readText,
   toAssetUrl,
   writeJson,
 } from "./fs/fileSystemAdapter";
 
+const SHIMEJI_TICK_MS = 25;
+const DEFAULT_IMPORT_FPS = 8;
+const DEFAULT_FRAME_SIZE = 128;
+const MAX_AUTO_SCALE = 4;
+
+const ACTION_CATEGORY_CANDIDATES: Readonly<
+  Partial<Record<AnimationCategory, readonly string[]>>
+> = {
+  idle: ["Stand"],
+  walk: ["Walk", "Run"],
+  sit: ["Sit", "SitAndLookAtMouse"],
+  sitAlt: ["SitAndLookUp", "SitAndSpinHeadAction", "Sprawl"],
+  sitAlt2: ["SitWithLegsUp", "SitWithLegsDown"],
+  sitOnBar: ["SitWithLegsUp", "SitWithLegsDown"],
+  dangleOnBar: ["SitAndDangleLegs"],
+  fall: ["Falling", "FallWithIe", "Tripping"],
+  bounce: ["Bouncing"],
+  dragResist: ["Resisting", "Pinched"],
+  grabWall: ["GrabWall"],
+  climbWall: ["ClimbWall"],
+  grabCeiling: ["GrabCeiling"],
+  climbCeiling: ["ClimbCeiling"],
+  emote: ["SitAndSpinHeadAction"],
+  emote2: ["SitAndDangleLegs"],
+  emote3: ["Creep"],
+  emote4: ["ThrowIe"],
+  emote5: ["HitIe"],
+};
+
+interface ParsedShimejiPose {
+  path: string;
+  durationTicks: number;
+  velocityX: number;
+}
+
+interface ParsedShimejiAction {
+  name: string;
+  poses: ParsedShimejiPose[];
+}
+
+interface ShimejiPackage {
+  rootDir: string;
+  spriteDir: string;
+  configDir: string | null;
+  sources: ShimejiSourceFrame[];
+}
+
 export async function pickShimejiImgFolder(): Promise<string | null> {
   return pickDirectory("Select the Shimeji img folder");
+}
+
+export async function pickShimejiFolder(): Promise<string | null> {
+  return pickDirectory("Select the Shimeji folder");
 }
 
 // lists the png frames inside a Shimeji img folder, sorted by name.
 export async function listShimejiFrames(
   dir: string,
 ): Promise<ShimejiSourceFrame[]> {
-  const entries = await listDirectory(dir);
-  return entries
-    .filter((entry) => entry.isFile && entry.name.toLowerCase().endsWith(".png"))
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-    .map((entry) => ({
-      name: entry.name,
-      path: entry.path,
-      url: toAssetUrl(entry.path),
-    }));
+  return listPngFramesRecursive(dir);
 }
 
 async function listCharacterSpriteSources(
@@ -112,11 +157,493 @@ function buildAnimations(
       frames: assignment.frames.map((source, index) => ({
         src: `sprites/${category}/${index}.png`,
         source: sourcePathByInput.get(source),
+        durationTicks: assignment.durationTicks?.[index],
       })),
     };
   }
 
   return animations;
+}
+
+async function listPngFramesRecursive(dir: string): Promise<ShimejiSourceFrame[]> {
+  if (!(await pathExists(dir))) {
+    return [];
+  }
+
+  const sources: ShimejiSourceFrame[] = [];
+
+  async function walk(currentDir: string): Promise<void> {
+    const entries = await listDirectory(currentDir);
+    for (const entry of entries) {
+      if (entry.isDirectory) {
+        await walk(entry.path);
+        continue;
+      }
+
+      if (!entry.name.toLowerCase().endsWith(".png")) {
+        continue;
+      }
+
+      sources.push({
+        name: entry.name,
+        path: entry.path,
+        url: toAssetUrl(entry.path),
+      });
+    }
+  }
+
+  await walk(dir);
+
+  return sources.sort((a, b) =>
+    a.path.localeCompare(b.path, undefined, { numeric: true }),
+  );
+}
+
+function isShimejiFrameName(name: string): boolean {
+  return /^shime\d+[a-z]*\.png$/i.test(name);
+}
+
+async function listDirsRecursive(dir: string): Promise<string[]> {
+  if (!(await pathExists(dir))) {
+    return [];
+  }
+
+  const dirs: string[] = [dir];
+
+  async function walk(currentDir: string): Promise<void> {
+    const entries = await listDirectory(currentDir);
+    for (const entry of entries) {
+      if (!entry.isDirectory) {
+        continue;
+      }
+
+      dirs.push(entry.path);
+      await walk(entry.path);
+    }
+  }
+
+  await walk(dir);
+  return dirs;
+}
+
+async function findBestSpriteDir(rootDir: string): Promise<string> {
+  const dirs = await listDirsRecursive(rootDir);
+  let bestDir = rootDir;
+  let bestScore = -1;
+
+  for (const dir of dirs) {
+    const entries = await listDirectory(dir);
+    const score = entries.filter(
+      (entry) => entry.isFile && isShimejiFrameName(entry.name),
+    ).length;
+
+    if (score > bestScore) {
+      bestDir = dir;
+      bestScore = score;
+    }
+  }
+
+  return bestDir;
+}
+
+async function findConfigDirs(rootDir: string): Promise<string[]> {
+  const dirs = await listDirsRecursive(rootDir);
+  const configDirs: string[] = [];
+
+  for (const dir of dirs) {
+    const actionsPath = await joinPath(dir, "conf", "actions.xml");
+    if (await pathExists(actionsPath)) {
+      configDirs.push(dir);
+    }
+  }
+
+  return configDirs;
+}
+
+async function findShimejiPackage(inputDir: string): Promise<ShimejiPackage | null> {
+  const sources = await listPngFramesRecursive(inputDir);
+  const configDirs = await findConfigDirs(inputDir);
+
+  if (configDirs.length > 0) {
+    const rootDir = configDirs[0];
+    return {
+      rootDir,
+      configDir: rootDir,
+      spriteDir: await findBestSpriteDir(rootDir),
+      sources,
+    };
+  }
+
+  if (sources.some((source) => isShimejiFrameName(source.name))) {
+    return {
+      rootDir: inputDir,
+      configDir: null,
+      spriteDir: await findBestSpriteDir(inputDir),
+      sources,
+    };
+  }
+
+  return null;
+}
+
+function elementsByName(parent: ParentNode, name: string): Element[] {
+  return Array.from(parent.querySelectorAll("*")).filter(
+    (element) => element.localName === name,
+  );
+}
+
+function parseDurationTicks(raw: string | null): number {
+  if (raw === null) {
+    return Math.round(1000 / DEFAULT_IMPORT_FPS / SHIMEJI_TICK_MS);
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return Math.round(1000 / DEFAULT_IMPORT_FPS / SHIMEJI_TICK_MS);
+  }
+
+  return Math.round(parsed);
+}
+
+function parseVelocityX(raw: string | null): number {
+  if (raw === null) {
+    return 0;
+  }
+
+  const [x] = raw.split(",");
+  const parsed = Number(x);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sourceByBasename(
+  sources: readonly ShimejiSourceFrame[],
+): ReadonlyMap<string, ShimejiSourceFrame> {
+  const map = new Map<string, ShimejiSourceFrame>();
+  for (const source of sources) {
+    map.set(source.name.toLowerCase(), source);
+  }
+  return map;
+}
+
+async function imagePathFromPose(
+  shimeji: ShimejiPackage,
+  image: string,
+  sourceByName: ReadonlyMap<string, ShimejiSourceFrame>,
+): Promise<string | null> {
+  const parts = image
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+
+  const candidates = [
+    await joinPath(shimeji.spriteDir, ...parts),
+    await joinPath(shimeji.rootDir, ...parts),
+  ];
+
+  for (const candidate of candidates) {
+    if (await pathExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  const basename = parts[parts.length - 1];
+  if (!basename) {
+    return null;
+  }
+
+  return sourceByName.get(basename.toLowerCase())?.path ?? null;
+}
+
+async function parseShimejiActions(
+  shimeji: ShimejiPackage,
+): Promise<Map<string, ParsedShimejiAction>> {
+  if (shimeji.configDir === null) {
+    return new Map();
+  }
+
+  const actionsPath = await joinPath(shimeji.configDir, "conf", "actions.xml");
+  const xml = await readText(actionsPath);
+  const document = new DOMParser().parseFromString(xml, "application/xml");
+  if (elementsByName(document, "parsererror").length > 0) {
+    throw new Error("actions.xml is not valid XML");
+  }
+
+  const actions = new Map<string, ParsedShimejiAction>();
+  const sourceByName = sourceByBasename(shimeji.sources);
+  for (const actionNode of elementsByName(document, "Action")) {
+    const name = actionNode.getAttribute("Name");
+    if (!name) {
+      continue;
+    }
+
+    const poses: ParsedShimejiPose[] = [];
+    for (const poseNode of elementsByName(actionNode, "Pose")) {
+      const image = poseNode.getAttribute("Image");
+      if (!image) {
+        continue;
+      }
+
+      const path = await imagePathFromPose(shimeji, image, sourceByName);
+      if (path === null) {
+        continue;
+      }
+
+      poses.push({
+        path,
+        durationTicks: parseDurationTicks(poseNode.getAttribute("Duration")),
+        velocityX: parseVelocityX(poseNode.getAttribute("Velocity")),
+      });
+    }
+
+    if (poses.length > 0) {
+      actions.set(name, { name, poses });
+    }
+  }
+
+  return actions;
+}
+
+function averageFps(poses: readonly ParsedShimejiPose[]): number {
+  if (poses.length === 0) {
+    return DEFAULT_IMPORT_FPS;
+  }
+
+  const totalTicks = poses.reduce(
+    (total, pose) => total + pose.durationTicks,
+    0,
+  );
+  const averageTicks = Math.max(1, totalTicks / poses.length);
+  return Math.max(1, Math.round(1000 / (averageTicks * SHIMEJI_TICK_MS)));
+}
+
+function averageWalkSpeed(
+  action: ParsedShimejiAction | undefined,
+): number {
+  if (!action) {
+    return 2;
+  }
+
+  const velocities = action.poses
+    .map((pose) => Math.abs(pose.velocityX))
+    .filter((velocity) => velocity > 0);
+  if (velocities.length === 0) {
+    return 2;
+  }
+
+  return velocities.reduce((sum, velocity) => sum + velocity, 0) / velocities.length;
+}
+
+async function measureFrameSize(
+  framePath: string | undefined,
+): Promise<{ width: number; height: number }> {
+  if (!framePath) {
+    return { width: DEFAULT_FRAME_SIZE, height: DEFAULT_FRAME_SIZE };
+  }
+
+  try {
+    return await getImageSize(toAssetUrl(framePath));
+  } catch {
+    return { width: DEFAULT_FRAME_SIZE, height: DEFAULT_FRAME_SIZE };
+  }
+}
+
+function defaultScaleForFrameHeight(frameHeight: number): number {
+  if (frameHeight >= DEFAULT_FRAME_SIZE) {
+    return 1;
+  }
+
+  return Math.min(MAX_AUTO_SCALE, DEFAULT_FRAME_SIZE / frameHeight);
+}
+
+function emptyAssignments(): ShimejiDraft["assignments"] {
+  return ANIMATION_CATEGORIES.reduce((accumulator, category) => {
+    accumulator[category] = { frames: [], fps: DEFAULT_IMPORT_FPS };
+    return accumulator;
+  }, {} as ShimejiDraft["assignments"]);
+}
+
+function assignActionToCategory(
+  assignments: ShimejiDraft["assignments"],
+  category: AnimationCategory,
+  action: ParsedShimejiAction,
+): void {
+  assignments[category] = {
+    frames: action.poses.map((pose) => pose.path),
+    fps: averageFps(action.poses),
+    durationTicks: action.poses.map((pose) => pose.durationTicks),
+  };
+}
+
+function poseAtRatio(
+  action: ParsedShimejiAction,
+  ratio: number,
+): ParsedShimejiPose {
+  const index = Math.min(
+    action.poses.length - 1,
+    Math.max(0, Math.round((action.poses.length - 1) * ratio)),
+  );
+  return action.poses[index];
+}
+
+function assignPoseToCategory(
+  assignments: ShimejiDraft["assignments"],
+  category: AnimationCategory,
+  pose: ParsedShimejiPose,
+): void {
+  assignments[category] = {
+    frames: [pose.path],
+    fps: DEFAULT_IMPORT_FPS,
+    durationTicks: [pose.durationTicks],
+  };
+}
+
+function assignPinchedDragTiers(
+  assignments: ShimejiDraft["assignments"],
+  action: ParsedShimejiAction | undefined,
+): void {
+  if (!action || action.poses.length === 0) {
+    return;
+  }
+
+  // Shimeji "Pinched" is usually a lean pose strip, not a playback loop.
+  // Layout is commonly strong-left -> neutral -> strong-right.
+  const light = poseAtRatio(action, 0.5);
+  assignPoseToCategory(assignments, "dragLightLeft", light);
+  assignPoseToCategory(assignments, "dragLightRight", light);
+  assignPoseToCategory(assignments, "dragMildLeft", poseAtRatio(action, 0.2));
+  assignPoseToCategory(assignments, "dragStrongLeft", poseAtRatio(action, 0));
+  assignPoseToCategory(assignments, "dragMildRight", poseAtRatio(action, 0.8));
+  assignPoseToCategory(assignments, "dragStrongRight", poseAtRatio(action, 1));
+}
+
+function buildAssignmentsFromActions(
+  actions: ReadonlyMap<string, ParsedShimejiAction>,
+): ShimejiDraft["assignments"] {
+  const assignments = emptyAssignments();
+
+  for (const category of ANIMATION_CATEGORIES) {
+    const candidates = ACTION_CATEGORY_CANDIDATES[category] ?? [];
+    const action = candidates
+      .map((name) => actions.get(name))
+      .find((candidate) => candidate !== undefined);
+
+    if (action) {
+      assignActionToCategory(assignments, category, action);
+    }
+  }
+
+  assignPinchedDragTiers(assignments, actions.get("Pinched"));
+
+  return assignments;
+}
+
+function framesForClassicNumbers(
+  sources: readonly ShimejiSourceFrame[],
+  numbers: readonly number[],
+): string[] {
+  const frames: ShimejiSourceFrame[] = [];
+
+  for (const number of numbers) {
+    const pattern = new RegExp(`^shime${number}[a-z]*\\.png$`, "i");
+    frames.push(...sources.filter((source) => pattern.test(source.name)));
+  }
+
+  return frames
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    .map((source) => source.path);
+}
+
+function assignClassicFrames(
+  assignments: ShimejiDraft["assignments"],
+  sources: readonly ShimejiSourceFrame[],
+  category: AnimationCategory,
+  numbers: readonly number[],
+): void {
+  if (assignments[category].frames.length > 0) {
+    return;
+  }
+
+  const frames = framesForClassicNumbers(sources, numbers);
+  if (frames.length === 0) {
+    return;
+  }
+
+  assignments[category] = { frames, fps: DEFAULT_IMPORT_FPS };
+}
+
+function fillClassicAssignments(
+  assignments: ShimejiDraft["assignments"],
+  sources: readonly ShimejiSourceFrame[],
+): void {
+  assignClassicFrames(assignments, sources, "idle", [1]);
+  assignClassicFrames(assignments, sources, "walk", [2]);
+  assignClassicFrames(assignments, sources, "walk", [1]);
+  assignClassicFrames(assignments, sources, "sit", [11]);
+  assignClassicFrames(assignments, sources, "sitAlt", [26, 27, 28, 29]);
+  assignClassicFrames(assignments, sources, "sitAlt2", [30, 31, 32]);
+  assignClassicFrames(assignments, sources, "sitOnBar", [31]);
+  assignClassicFrames(assignments, sources, "dangleOnBar", [30, 31, 32, 33]);
+  assignClassicFrames(assignments, sources, "fall", [4]);
+  assignClassicFrames(assignments, sources, "bounce", [18]);
+  assignClassicFrames(assignments, sources, "dragLightLeft", [7]);
+  assignClassicFrames(assignments, sources, "dragMildLeft", [8]);
+  assignClassicFrames(assignments, sources, "dragStrongLeft", [9]);
+  assignClassicFrames(assignments, sources, "dragLightRight", [7]);
+  assignClassicFrames(assignments, sources, "dragMildRight", [8]);
+  assignClassicFrames(assignments, sources, "dragStrongRight", [10]);
+  assignClassicFrames(assignments, sources, "dragResist", [5, 6]);
+  assignClassicFrames(assignments, sources, "grabWall", [13]);
+  assignClassicFrames(assignments, sources, "grabWall", [12]);
+  assignClassicFrames(assignments, sources, "climbWall", [14, 12, 13]);
+  assignClassicFrames(assignments, sources, "grabCeiling", [23]);
+  assignClassicFrames(assignments, sources, "climbCeiling", [24, 25, 23]);
+  assignClassicFrames(assignments, sources, "emote", [26, 27, 28, 29]);
+  assignClassicFrames(assignments, sources, "emote2", [30, 31, 32, 33]);
+  assignClassicFrames(assignments, sources, "emote3", [20, 21]);
+  assignClassicFrames(assignments, sources, "emote4", [22]);
+}
+
+export async function buildShimejiDraftFromFolder(
+  inputDir: string,
+): Promise<ShimejiDraft> {
+  const shimeji = await findShimejiPackage(inputDir);
+  if (shimeji === null) {
+    throw new Error("No Shimeji frames found. Drop the Shimeji root folder, img folder, or character sprite folder.");
+  }
+
+  const sources = shimeji.sources.filter((source) =>
+    isShimejiFrameName(source.name),
+  );
+  const actions = await parseShimejiActions(shimeji);
+  const assignments = buildAssignmentsFromActions(actions);
+  fillClassicAssignments(assignments, sources);
+
+  if (assignments.idle.frames.length === 0 || assignments.walk.frames.length === 0) {
+    throw new Error("Could not identify required idle/walk frames from this Shimeji folder.");
+  }
+
+  const measuredFrame = await measureFrameSize(
+    assignments.idle.frames[0] ?? assignments.walk.frames[0],
+  );
+
+  return {
+    imgDir: shimeji.spriteDir,
+    sources,
+    assignments,
+    name: await getBasename(shimeji.spriteDir),
+    dialogueLines: [],
+    dialogueFrequency: 0.2,
+    behavior: { movementSpeed: 1, actionFrequency: 0.5, dialogueFrequency: 0.2 },
+    scale: defaultScaleForFrameHeight(measuredFrame.height),
+    speed: averageWalkSpeed(actions.get("Walk")),
+    frameWidth: measuredFrame.width,
+    frameHeight: measuredFrame.height,
+  };
+}
+
+export async function convertShimejiFolder(inputDir: string): Promise<string> {
+  const draft = await buildShimejiDraftFromFolder(inputDir);
+  return convertShimejiDraft(draft);
 }
 
 async function writeDraftSprites(

@@ -11,6 +11,8 @@ export interface CategoryAssignment {
   // ordered list of source frame paths assigned to this category
   frames: string[];
   fps: number;
+  // optional per-frame Shimeji duration in 25ms engine ticks
+  durationTicks?: number[];
 }
 
 export type CategoryAssignments = Record<AnimationCategory, CategoryAssignment>;

@@ -14,6 +14,7 @@ import { getImageSize } from "../utils/imageSize";
 
 const DEFAULT_FPS = 8;
 const DEFAULT_FRAME_SIZE = 128;
+const MAX_AUTO_SCALE = 4;
 
 function emptyAssignments(): CategoryAssignments {
   return ANIMATION_CATEGORIES.reduce((accumulator, category) => {
@@ -36,6 +37,23 @@ function initialDraft(): ShimejiDraft {
     frameWidth: DEFAULT_FRAME_SIZE,
     frameHeight: DEFAULT_FRAME_SIZE,
   };
+}
+
+function isLikelySpriteFrame(source: { name: string }): boolean {
+  const name = source.name.toLowerCase();
+  return (
+    name.startsWith("shime") &&
+    name !== "icon.png" &&
+    !name.startsWith("banner")
+  );
+}
+
+function defaultScaleForFrameHeight(frameHeight: number): number {
+  if (frameHeight >= DEFAULT_FRAME_SIZE) {
+    return 1;
+  }
+
+  return Math.min(MAX_AUTO_SCALE, DEFAULT_FRAME_SIZE / frameHeight);
 }
 
 export function useShimejiDraft() {
@@ -116,9 +134,12 @@ export function useShimejiDraft() {
       let frameWidth = DEFAULT_FRAME_SIZE;
       let frameHeight = DEFAULT_FRAME_SIZE;
 
-      if (sources.length > 0) {
+      const sizeSource =
+        sources.find(isLikelySpriteFrame) ?? sources.find((source) => source.name !== "icon.png");
+
+      if (sizeSource) {
         try {
-          const size = await getImageSize(sources[0].url);
+          const size = await getImageSize(sizeSource.url);
           frameWidth = size.width;
           frameHeight = size.height;
         } catch {
@@ -131,6 +152,7 @@ export function useShimejiDraft() {
         imgDir: dir,
         sources,
         assignments: emptyAssignments(),
+        scale: defaultScaleForFrameHeight(frameHeight),
         frameWidth,
         frameHeight,
       }));

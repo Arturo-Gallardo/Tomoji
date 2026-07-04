@@ -47,5 +47,10 @@ export function useCompanionWalkPickerEvents({
       unlistenSelect?.();
       unlistenCancel?.();
     };
-  }, [onCancel, onSelectClimbTarget, onSelectCrawlTarget, onSelectWalkTarget]);
+  }, [
+    onCancel,
+    onSelectClimbTarget,
+    onSelectCrawlTarget,
+    onSelectWalkTarget,
+  ]);
 }

@@ -10,12 +10,12 @@ export function SelectImgFolderStep({ controller }: SelectImgFolderStepProps) {
   return (
     <div className="space-y-8">
       <p className="max-w-xl text-sm leading-relaxed text-neutral-400">
-        Shimeji characters ship as a folder of PNG frames (usually called
+        Pick a folder of PNG frames (Shimeji folders usually keep them under
         <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">
           img
         </code>
-        ). Pick that folder and we&apos;ll convert the frames you choose into a
-        Tomoji. Your files stay on your machine — nothing is uploaded.
+        ). Choose frames manually, then tune animation speed and details. Your
+        files stay on your machine — nothing is uploaded.
       </p>
 
       <button
@@ -24,7 +24,7 @@ export function SelectImgFolderStep({ controller }: SelectImgFolderStepProps) {
         onClick={() => void loadImgFolder()}
         className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
       >
-        {isLoadingFolder ? "Loading..." : "Choose img folder"}
+        {isLoadingFolder ? "Loading..." : "Choose frames folder"}
       </button>
 
       {draft.imgDir ? (
