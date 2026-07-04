@@ -117,12 +117,16 @@ export interface BehaviorSettings {
   // 0..1 likelihood the companion speaks on its own
   dialogueFrequency: number;
   allowRandomWalk: boolean;
+  walkFrequency: number;
   allowRandomFloorCrawl: boolean;
   floorCrawlFrequency: number;
   allowRandomSit: boolean;
+  sitFrequency: number;
   randomSitActions: RandomSitAction[];
   allowRandomWallClimb: boolean;
+  wallClimbFrequency: number;
   allowRandomCeilingCrawl: boolean;
+  ceilingCrawlFrequency: number;
   allowRandomDialogue: boolean;
 }
 

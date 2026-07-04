@@ -23,6 +23,27 @@ const ANIMATION_LABELS: Record<CompanionMenuAnimationAction, string> = {
   emote6: "Emote 6",
 };
 
+function isEmoteAction(
+  action: CompanionMenuAnimationAction,
+): action is Extract<CompanionMenuAnimationAction, `emote${string}` | "emote"> {
+  return action.startsWith("emote");
+}
+
+function animationLabel(
+  action: CompanionMenuAnimationAction,
+  availableActions: readonly CompanionMenuAnimationAction[],
+): string {
+  if (!isEmoteAction(action)) {
+    return ANIMATION_LABELS[action];
+  }
+
+  const emoteIndex = availableActions
+    .filter(isEmoteAction)
+    .indexOf(action);
+
+  return `Emote ${emoteIndex + 1}`;
+}
+
 export function CompanionMenuWindow() {
   const [wallLocked, setWallLocked] = useState(false);
   const [undersideLocked, setUndersideLocked] = useState(false);
@@ -95,7 +116,7 @@ export function CompanionMenuWindow() {
       ? []
       : availableActions.map((action) => ({
           action,
-          label: ANIMATION_LABELS[action],
+          label: animationLabel(action, availableActions),
         }));
 
   const handleAction = (action: CompanionMenuAction) => {

@@ -150,9 +150,11 @@ export function CharacterDetailsStep({ controller }: CharacterDetailsStepProps) 
             max={1}
             step={0.05}
             value={draft.dialogueFrequency}
-            onChange={(event) =>
-              setDialogueFrequency(Number(event.target.value))
-            }
+            onChange={(event) => {
+              const frequency = Number(event.target.value);
+              setDialogueFrequency(frequency);
+              patchBehavior({ dialogueFrequency: frequency });
+            }}
             className="mt-1 w-full"
           />
         </label>

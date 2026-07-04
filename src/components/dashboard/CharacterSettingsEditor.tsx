@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   normalizeBehaviorSettings,
   RANDOM_SIT_ACTIONS,
@@ -9,7 +9,6 @@ import {
 } from "../../services/characterLibrary";
 import { TomojiPageHeader } from "./TomojiPageHeader";
 import { TomojiPageLayout } from "./TomojiPageLayout";
-import { SettingsToggleRow } from "./SettingsToggleRow";
 import type { BehaviorSettings, RandomSitAction } from "../../types/character";
 import type { CompanionInstance } from "../../types/companionInstance";
 
@@ -21,6 +20,17 @@ type RandomBehaviorKey = Extract<
   | "allowRandomWallClimb"
   | "allowRandomCeilingCrawl"
   | "allowRandomDialogue"
+>;
+
+type FrequencyKey = Extract<
+  keyof BehaviorSettings,
+  | "actionFrequency"
+  | "walkFrequency"
+  | "floorCrawlFrequency"
+  | "sitFrequency"
+  | "wallClimbFrequency"
+  | "ceilingCrawlFrequency"
+  | "dialogueFrequency"
 >;
 
 const RANDOM_SIT_OPTIONS: readonly {
@@ -44,6 +54,115 @@ const RANDOM_SIT_OPTIONS: readonly {
     description: "third sit slot",
   },
 ];
+
+interface AutonomySliderRowProps {
+  label: string;
+  description: string;
+  enabled?: boolean;
+  disabled?: boolean;
+  frequency: number;
+  controlLabel?: string;
+  valueLabel?: string;
+  onToggle?: (enabled: boolean) => void;
+  onFrequencyChange: (frequency: number) => void;
+  children?: ReactNode;
+}
+
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function rateLabel(value: number): string {
+  if (value <= 0) {
+    return "Off";
+  }
+  if (value < 0.25) {
+    return "Rare";
+  }
+  if (value < 0.5) {
+    return "Slow";
+  }
+  if (value < 0.8) {
+    return "Normal";
+  }
+  return "Fast";
+}
+
+function weightLabel(value: number): string {
+  return `${value.toFixed(2)}x`;
+}
+
+function AutonomySliderRow({
+  label,
+  description,
+  enabled = true,
+  disabled = false,
+  frequency,
+  controlLabel = "Frequency",
+  valueLabel,
+  onToggle,
+  onFrequencyChange,
+  children,
+}: AutonomySliderRowProps) {
+  const sliderDisabled = disabled || !enabled;
+
+  return (
+    <div
+      className={`grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-center ${
+        disabled ? "opacity-50" : ""
+      }`}
+    >
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-3">
+          {onToggle ? (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              disabled={disabled}
+              onClick={() => onToggle(!enabled)}
+              className={`relative h-5 w-9 shrink-0 rounded-full transition disabled:cursor-default ${
+                enabled ? "bg-white" : "bg-neutral-700"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-neutral-950 transition ${
+                  enabled ? "left-[1.125rem]" : "left-0.5"
+                }`}
+              />
+            </button>
+          ) : null}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-neutral-100">
+              {label}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-neutral-500">
+              {description}
+            </p>
+          </div>
+        </div>
+        {children ? <div className="mt-3">{children}</div> : null}
+      </div>
+
+      <label className="block">
+        <span className="mb-1 flex justify-between text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+          <span>{controlLabel}</span>
+          <span>{valueLabel ?? percent(frequency)}</span>
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={frequency}
+          disabled={sliderDisabled}
+          onChange={(event) => onFrequencyChange(Number(event.target.value))}
+          className="w-full disabled:opacity-40"
+        />
+      </label>
+    </div>
+  );
+}
 
 function sameSitActions(
   first: readonly RandomSitAction[],
@@ -75,7 +194,10 @@ export function CharacterSettingsEditor({
   const [name, setName] = useState(instance.characterId);
   const [scale, setScale] = useState(instance.scale);
   const [behavior, setBehavior] = useState(() =>
-    normalizeBehaviorSettings(instance.behaviorSettings),
+    normalizeBehaviorSettings({
+      ...instance.behaviorSettings,
+      dialogueFrequency: instance.dialogueSettings.frequency,
+    }),
   );
   const [dialogue, setDialogue] = useState(instance.dialogueSettings);
   const [availableRandomSitActions, setAvailableRandomSitActions] =
@@ -92,6 +214,21 @@ export function CharacterSettingsEditor({
   const showSitVariantPicker = visibleSitOptions.length > 1;
   const hasRandomSitVariants =
     availableRandomSitActions === null || availableRandomSitActions.length > 0;
+  const floorWeights = {
+    walk: behavior.allowRandomWalk ? behavior.walkFrequency : 0,
+    crawl:
+      behavior.allowRandomFloorCrawl && hasFloorCrawl
+        ? behavior.floorCrawlFrequency
+        : 0,
+    sit:
+      behavior.allowRandomSit && hasRandomSitVariants
+        ? behavior.sitFrequency
+        : 0,
+  };
+  const floorWeightTotal =
+    floorWeights.walk + floorWeights.crawl + floorWeights.sit;
+  const floorShare = (weight: number) =>
+    floorWeightTotal > 0 ? percent(weight / floorWeightTotal) : "0%";
 
   const addLine = () => {
     const trimmed = lineDraft.trim();
@@ -116,6 +253,21 @@ export function CharacterSettingsEditor({
     setBehavior((current) => ({
       ...current,
       [key]: checked,
+    }));
+  };
+
+  const setFrequency = (key: FrequencyKey, frequency: number) => {
+    setBehavior((current) => ({
+      ...current,
+      [key]: frequency,
+    }));
+  };
+
+  const setDialogueFrequency = (frequency: number) => {
+    setFrequency("dialogueFrequency", frequency);
+    setDialogue((current) => ({
+      ...current,
+      frequency,
     }));
   };
 
@@ -195,7 +347,10 @@ export function CharacterSettingsEditor({
         name,
         scale,
         behaviorSettings: behavior,
-        dialogueSettings: dialogue,
+        dialogueSettings: {
+          ...dialogue,
+          frequency: behavior.dialogueFrequency,
+        },
       });
       onClose();
     } finally {
@@ -301,103 +456,92 @@ export function CharacterSettingsEditor({
             />
           </label>
 
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-              Action frequency: {Math.round(behavior.actionFrequency * 100)}%
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={behavior.actionFrequency}
-              onChange={(event) =>
-                setBehavior((current) => ({
-                  ...current,
-                  actionFrequency: Number(event.target.value),
-                }))
-              }
-              className="mt-2 w-full"
-            />
-          </label>
-
           <div className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/70">
             <div className="border-b border-neutral-800 px-4 py-3">
               <p className="text-sm font-bold text-white">Autonomy</p>
               <p className="mt-1 text-xs text-neutral-500">
-                Choose what this Tomoji can do without being told.
+                Pace decides when it acts. Mix decides what it picks when a
+                floor action starts.
               </p>
             </div>
 
             <div className="divide-y divide-neutral-800">
-              <div className="px-4 py-3">
-                <SettingsToggleRow
-                  label="Walk around"
-                  description="Pick floor destinations on its own"
-                  checked={behavior.allowRandomWalk}
-                  onChange={(checked) =>
-                    setRandomBehavior("allowRandomWalk", checked)
-                  }
-                />
+              <div className="bg-neutral-900/50 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                Timing
               </div>
 
-              <div className="px-4 py-3">
-                <SettingsToggleRow
-                  label="Crawl on floor"
-                  description={
-                    hasFloorCrawl
-                      ? "Creep along the floor with its crawl animation"
-                      : "No floor crawl animation is assigned"
-                  }
-                  checked={behavior.allowRandomFloorCrawl && hasFloorCrawl}
-                  disabled={!hasFloorCrawl}
-                  onChange={(checked) =>
-                    setRandomBehavior("allowRandomFloorCrawl", checked)
-                  }
-                />
+              <AutonomySliderRow
+                label="Overall pace"
+                description="How long it waits between idle decisions"
+                frequency={behavior.actionFrequency}
+                controlLabel="Idle rate"
+                valueLabel={rateLabel(behavior.actionFrequency)}
+                onFrequencyChange={(frequency) =>
+                  setFrequency("actionFrequency", frequency)
+                }
+              />
 
-                {hasFloorCrawl && behavior.allowRandomFloorCrawl ? (
-                  <label className="mt-3 block">
-                    <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-                      Crawl chance:{" "}
-                      {Math.round(behavior.floorCrawlFrequency * 100)}%
-                    </span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={behavior.floorCrawlFrequency}
-                      onChange={(event) =>
-                        setBehavior((current) => ({
-                          ...current,
-                          floorCrawlFrequency: Number(event.target.value),
-                        }))
-                      }
-                      className="mt-2 w-full"
-                    />
-                  </label>
-                ) : null}
+              <div className="bg-neutral-900/50 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                Floor action mix (relative, not activity rate)
               </div>
 
-              <div className="px-4 py-3">
-                <SettingsToggleRow
-                  label="Sit down"
-                  description={
-                    hasRandomSitVariants
-                      ? "Take breaks using assigned floor sit animations"
-                      : "No floor sit animations are assigned"
-                  }
-                  checked={behavior.allowRandomSit && hasRandomSitVariants}
-                  disabled={!hasRandomSitVariants}
-                  onChange={(checked) =>
-                    setRandomBehavior("allowRandomSit", checked)
-                  }
-                />
+              <AutonomySliderRow
+                label="Walk"
+                description={`${floorShare(floorWeights.walk)} of floor actions`}
+                enabled={behavior.allowRandomWalk}
+                frequency={behavior.walkFrequency}
+                controlLabel="Mix"
+                valueLabel={weightLabel(behavior.walkFrequency)}
+                onToggle={(checked) =>
+                  setRandomBehavior("allowRandomWalk", checked)
+                }
+                onFrequencyChange={(frequency) =>
+                  setFrequency("walkFrequency", frequency)
+                }
+              />
 
+              <AutonomySliderRow
+                label="Floor crawl"
+                description={
+                  hasFloorCrawl
+                    ? `${floorShare(floorWeights.crawl)} of floor actions`
+                    : "No floor crawl animation assigned"
+                }
+                enabled={behavior.allowRandomFloorCrawl && hasFloorCrawl}
+                disabled={!hasFloorCrawl}
+                frequency={behavior.floorCrawlFrequency}
+                controlLabel="Mix"
+                valueLabel={weightLabel(behavior.floorCrawlFrequency)}
+                onToggle={(checked) =>
+                  setRandomBehavior("allowRandomFloorCrawl", checked)
+                }
+                onFrequencyChange={(frequency) =>
+                  setFrequency("floorCrawlFrequency", frequency)
+                }
+              />
+
+              <AutonomySliderRow
+                label="Sit"
+                description={
+                  hasRandomSitVariants
+                    ? `${floorShare(floorWeights.sit)} of floor actions`
+                    : "No floor sit animation assigned"
+                }
+                enabled={behavior.allowRandomSit && hasRandomSitVariants}
+                disabled={!hasRandomSitVariants}
+                frequency={behavior.sitFrequency}
+                controlLabel="Mix"
+                valueLabel={weightLabel(behavior.sitFrequency)}
+                onToggle={(checked) =>
+                  setRandomBehavior("allowRandomSit", checked)
+                }
+                onFrequencyChange={(frequency) =>
+                  setFrequency("sitFrequency", frequency)
+                }
+              >
                 {showSitVariantPicker ? (
                   <div
-                    className={`mt-3 transition ${
+                    className={`transition ${
                       behavior.allowRandomSit ? "" : "opacity-45"
                     }`}
                   >
@@ -438,40 +582,54 @@ export function CharacterSettingsEditor({
                     ) : null}
                   </div>
                 ) : null}
+              </AutonomySliderRow>
+
+              <div className="bg-neutral-900/50 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                Attached actions
               </div>
 
-              <div className="px-4 py-3">
-                <SettingsToggleRow
-                  label="Climb walls"
-                  description="Move on vertical edges after you attach it"
-                  checked={behavior.allowRandomWallClimb}
-                  onChange={(checked) =>
-                    setRandomBehavior("allowRandomWallClimb", checked)
-                  }
-                />
-              </div>
+              <AutonomySliderRow
+                label="Wall climb"
+                description="Move on vertical edges when attached"
+                enabled={behavior.allowRandomWallClimb}
+                frequency={behavior.wallClimbFrequency}
+                controlLabel="Climb rate"
+                valueLabel={rateLabel(behavior.wallClimbFrequency)}
+                onToggle={(checked) =>
+                  setRandomBehavior("allowRandomWallClimb", checked)
+                }
+                onFrequencyChange={(frequency) =>
+                  setFrequency("wallClimbFrequency", frequency)
+                }
+              />
 
-              <div className="px-4 py-3">
-                <SettingsToggleRow
-                  label="Crawl on ceilings"
-                  description="Move under windows after you attach it"
-                  checked={behavior.allowRandomCeilingCrawl}
-                  onChange={(checked) =>
-                    setRandomBehavior("allowRandomCeilingCrawl", checked)
-                  }
-                />
-              </div>
+              <AutonomySliderRow
+                label="Ceiling crawl"
+                description="Move under windows when attached"
+                enabled={behavior.allowRandomCeilingCrawl}
+                frequency={behavior.ceilingCrawlFrequency}
+                controlLabel="Crawl rate"
+                valueLabel={rateLabel(behavior.ceilingCrawlFrequency)}
+                onToggle={(checked) =>
+                  setRandomBehavior("allowRandomCeilingCrawl", checked)
+                }
+                onFrequencyChange={(frequency) =>
+                  setFrequency("ceilingCrawlFrequency", frequency)
+                }
+              />
 
-              <div className="px-4 py-3">
-                <SettingsToggleRow
-                  label="Talk"
-                  description="Show dialogue on its own"
-                  checked={behavior.allowRandomDialogue}
-                  onChange={(checked) =>
-                    setRandomBehavior("allowRandomDialogue", checked)
-                  }
-                />
-              </div>
+              <AutonomySliderRow
+                label="Talk"
+                description="Chance each dialogue timer fires"
+                enabled={behavior.allowRandomDialogue}
+                frequency={behavior.dialogueFrequency}
+                controlLabel="Chance"
+                valueLabel={`${percent(behavior.dialogueFrequency)} per check`}
+                onToggle={(checked) =>
+                  setRandomBehavior("allowRandomDialogue", checked)
+                }
+                onFrequencyChange={setDialogueFrequency}
+              />
             </div>
           </div>
         </div>
@@ -529,25 +687,6 @@ export function CharacterSettingsEditor({
             )}
           </div>
 
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-              Dialogue frequency: {Math.round(dialogue.frequency * 100)}%
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={dialogue.frequency}
-              onChange={(event) =>
-                setDialogue((current) => ({
-                  ...current,
-                  frequency: Number(event.target.value),
-                }))
-              }
-              className="mt-2 w-full"
-            />
-          </label>
         </div>
       </div>
     </TomojiPageLayout>

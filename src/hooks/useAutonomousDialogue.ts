@@ -32,6 +32,7 @@ interface UseAutonomousDialogueOptions {
   startDialogue: (text: string) => void;
   characterId: string;
   isMuted: boolean;
+  frequency?: number;
   // the speaking companion's lines + how chatty it is (0..1)
   dialogueSettings?: DialogueSettings;
 }
@@ -46,17 +47,20 @@ export function useAutonomousDialogue({
   startDialogue,
   characterId,
   isMuted,
+  frequency,
   dialogueSettings,
 }: UseAutonomousDialogueOptions): void {
   const startDialogueRef = useRef(startDialogue);
   const characterIdRef = useRef(characterId);
   const dialogueSettingsRef = useRef(dialogueSettings);
+  const frequencyRef = useRef(frequency);
 
   useEffect(() => {
     startDialogueRef.current = startDialogue;
     characterIdRef.current = characterId;
     dialogueSettingsRef.current = dialogueSettings;
-  }, [characterId, dialogueSettings, startDialogue]);
+    frequencyRef.current = frequency;
+  }, [characterId, dialogueSettings, frequency, startDialogue]);
 
   useEffect(() => {
     if (
@@ -88,7 +92,10 @@ export function useAutonomousDialogue({
           }
 
           const settings = dialogueSettingsRef.current;
-          const chance = settings?.frequency ?? DEFAULT_AUTONOMOUS_DIALOGUE_CHANCE;
+          const chance =
+            frequencyRef.current ??
+            settings?.frequency ??
+            DEFAULT_AUTONOMOUS_DIALOGUE_CHANCE;
 
           if (Math.random() < chance) {
             const line = pickDialogueLine(

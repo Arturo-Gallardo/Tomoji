@@ -11,12 +11,16 @@ export const DEFAULT_BEHAVIOR_SETTINGS: BehaviorSettings = {
   actionFrequency: 0.5,
   dialogueFrequency: 0.2,
   allowRandomWalk: true,
+  walkFrequency: 1,
   allowRandomFloorCrawl: true,
-  floorCrawlFrequency: 0.25,
+  floorCrawlFrequency: 0.1,
   allowRandomSit: true,
+  sitFrequency: 0.35,
   randomSitActions: [...RANDOM_SIT_ACTIONS],
   allowRandomWallClimb: true,
+  wallClimbFrequency: 1,
   allowRandomCeilingCrawl: true,
+  ceilingCrawlFrequency: 1,
   allowRandomDialogue: true,
 };
 
@@ -32,6 +36,24 @@ function normalizeRandomSitActions(
   }
 
   return RANDOM_SIT_ACTIONS.filter((action) => actions.includes(action));
+}
+
+function normalizeFloorCrawlFrequency(
+  settings: Partial<BehaviorSettings> | undefined,
+): number {
+  // old default was too crawl-heavy. if this is an older saved config, migrate
+  // the old default down while leaving newer explicit slider values alone.
+  if (
+    settings?.floorCrawlFrequency === 0.25 &&
+    settings.walkFrequency === undefined
+  ) {
+    return DEFAULT_BEHAVIOR_SETTINGS.floorCrawlFrequency;
+  }
+
+  return clamp01(
+    settings?.floorCrawlFrequency ??
+      DEFAULT_BEHAVIOR_SETTINGS.floorCrawlFrequency,
+  );
 }
 
 // fills in any missing fields and clamps the 0..1 frequencies so persisted or
@@ -52,22 +74,33 @@ export function normalizeBehaviorSettings(
     ),
     allowRandomWalk:
       settings?.allowRandomWalk ?? DEFAULT_BEHAVIOR_SETTINGS.allowRandomWalk,
+    walkFrequency: clamp01(
+      settings?.walkFrequency ?? DEFAULT_BEHAVIOR_SETTINGS.walkFrequency,
+    ),
     allowRandomFloorCrawl:
       settings?.allowRandomFloorCrawl ??
       DEFAULT_BEHAVIOR_SETTINGS.allowRandomFloorCrawl,
-    floorCrawlFrequency: clamp01(
-      settings?.floorCrawlFrequency ??
-        DEFAULT_BEHAVIOR_SETTINGS.floorCrawlFrequency,
-    ),
+    floorCrawlFrequency: normalizeFloorCrawlFrequency(settings),
     allowRandomSit:
       settings?.allowRandomSit ?? DEFAULT_BEHAVIOR_SETTINGS.allowRandomSit,
+    sitFrequency: clamp01(
+      settings?.sitFrequency ?? DEFAULT_BEHAVIOR_SETTINGS.sitFrequency,
+    ),
     randomSitActions: normalizeRandomSitActions(settings?.randomSitActions),
     allowRandomWallClimb:
       settings?.allowRandomWallClimb ??
       DEFAULT_BEHAVIOR_SETTINGS.allowRandomWallClimb,
+    wallClimbFrequency: clamp01(
+      settings?.wallClimbFrequency ??
+        DEFAULT_BEHAVIOR_SETTINGS.wallClimbFrequency,
+    ),
     allowRandomCeilingCrawl:
       settings?.allowRandomCeilingCrawl ??
       DEFAULT_BEHAVIOR_SETTINGS.allowRandomCeilingCrawl,
+    ceilingCrawlFrequency: clamp01(
+      settings?.ceilingCrawlFrequency ??
+        DEFAULT_BEHAVIOR_SETTINGS.ceilingCrawlFrequency,
+    ),
     allowRandomDialogue:
       settings?.allowRandomDialogue ??
       DEFAULT_BEHAVIOR_SETTINGS.allowRandomDialogue,

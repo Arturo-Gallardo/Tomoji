@@ -21,6 +21,7 @@ import {
   copyFile,
   ensureDir,
   getBasename,
+  getDirname,
   joinPath,
   listDirectory,
   pathExists,
@@ -69,6 +70,15 @@ const ACTION_CATEGORY_CANDIDATES: Readonly<
   emote4: ["ThrowIe"],
   emote5: ["HitIe"],
 };
+
+const IMPORT_EMOTE_CATEGORIES: readonly AnimationCategory[] = [
+  "emote",
+  "emote2",
+  "emote3",
+  "emote4",
+  "emote5",
+  "emote6",
+];
 
 interface ParsedShimejiPose {
   path: string;
@@ -310,6 +320,15 @@ async function findShimejiPackage(inputDir: string): Promise<ShimejiPackage | nu
   }
 
   return null;
+}
+
+async function defaultShimejiName(shimeji: ShimejiPackage): Promise<string> {
+  const spriteName = await getBasename(shimeji.spriteDir);
+  if (spriteName.toLowerCase() !== "img") {
+    return spriteName;
+  }
+
+  return getBasename(await getDirname(shimeji.spriteDir));
 }
 
 function elementsByName(parent: ParentNode, name: string): Element[] {
@@ -628,6 +647,23 @@ function fillClassicAssignments(
   assignClassicFrames(assignments, sources, "emote2", [30, 31, 32, 33]);
 }
 
+function compactEmoteAssignments(
+  assignments: ShimejiDraft["assignments"],
+): void {
+  const assignedEmotes = IMPORT_EMOTE_CATEGORIES
+    .map((category) => assignments[category])
+    .filter((assignment) => assignment.frames.length > 0);
+
+  for (let index = 0; index < IMPORT_EMOTE_CATEGORIES.length; index += 1) {
+    const category = IMPORT_EMOTE_CATEGORIES[index];
+    const assignment = assignedEmotes[index];
+    assignments[category] = assignment ?? {
+      frames: [],
+      fps: DEFAULT_IMPORT_FPS,
+    };
+  }
+}
+
 export async function buildShimejiDraftFromFolder(
   inputDir: string,
 ): Promise<ShimejiDraft> {
@@ -642,6 +678,7 @@ export async function buildShimejiDraftFromFolder(
   const actions = await parseShimejiActions(shimeji);
   const assignments = buildAssignmentsFromActions(actions);
   fillClassicAssignments(assignments, sources);
+  compactEmoteAssignments(assignments);
 
   if (assignments.idle.frames.length === 0 || assignments.walk.frames.length === 0) {
     throw new Error("Could not identify required idle/walk frames from this Shimeji folder.");
@@ -658,7 +695,7 @@ export async function buildShimejiDraftFromFolder(
     imgDir: shimeji.spriteDir,
     sources,
     assignments,
-    name: await getBasename(shimeji.spriteDir),
+    name: await defaultShimejiName(shimeji),
     dialogueLines: [],
     dialogueFrequency: 0.2,
     behavior: { ...DEFAULT_BEHAVIOR_SETTINGS },
@@ -932,7 +969,10 @@ export async function loadCharacterDraft(
     name: manifest.name,
     dialogueLines: manifest.dialogueSettings.lines,
     dialogueFrequency: manifest.dialogueSettings.frequency,
-    behavior: normalizeBehaviorSettings(manifest.behaviorSettings),
+    behavior: normalizeBehaviorSettings({
+      ...manifest.behaviorSettings,
+      dialogueFrequency: manifest.dialogueSettings.frequency,
+    }),
     scale: manifest.defaultScale,
     speed: manifest.defaultSpeed,
     frameWidth: Math.max(manifest.frameWidth, frameSize.width),
@@ -988,7 +1028,10 @@ export async function convertShimejiDraft(
     frameWidth: frameSize.width,
     frameHeight: frameSize.height,
     animations: buildAnimations(draft, sourcePathByInput),
-    behaviorSettings: normalizeBehaviorSettings(draft.behavior),
+    behaviorSettings: normalizeBehaviorSettings({
+      ...draft.behavior,
+      dialogueFrequency: draft.dialogueFrequency,
+    }),
     dialogueSettings: {
       lines: draft.dialogueLines,
       frequency: draft.dialogueFrequency,

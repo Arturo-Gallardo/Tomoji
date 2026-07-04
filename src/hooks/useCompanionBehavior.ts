@@ -33,8 +33,6 @@ const MIN_WALK_DISTANCE = 80;
 const SNAP_HOVER_DURATION_MS = 500;
 const MOVEMENT_SPEED_SCALE = 2;
 
-// shimeji-style floor idle: sometimes sit instead of walking
-const AUTONOMOUS_SIT_CHANCE = 0.32;
 const MIN_AUTONOMOUS_SIT_MS = 20000;
 const MAX_AUTONOMOUS_SIT_MS = 55000;
 type SittingMode = "manual" | "auto" | null;
@@ -47,6 +45,28 @@ function randomIdleDelay(actionFrequency: number): number {
   const urgency = Math.max(actionFrequency, 0.05);
   const scale = 1 / urgency;
   return randomBetween(MIN_IDLE_MS * scale, MAX_IDLE_MS * scale);
+}
+
+function pickWeightedAction<T>(
+  options: readonly { value: T; weight: number }[],
+): T | null {
+  const total = options.reduce(
+    (sum, option) => sum + Math.max(0, option.weight),
+    0,
+  );
+  if (total <= 0) {
+    return null;
+  }
+
+  let cursor = Math.random() * total;
+  for (const option of options) {
+    cursor -= Math.max(0, option.weight);
+    if (cursor <= 0) {
+      return option.value;
+    }
+  }
+
+  return options[options.length - 1]?.value ?? null;
 }
 
 function isSameSurfaceLock(
@@ -950,7 +970,10 @@ export function useCompanionBehavior({
         (!behaviorSettingsRef.current.allowRandomFloorCrawl ||
           !registry.canFloorCrawl) &&
         !behaviorSettingsRef.current.allowRandomSit) ||
-      behaviorSettingsRef.current.actionFrequency <= 0
+      behaviorSettingsRef.current.actionFrequency <= 0 ||
+      (!behaviorSettingsRef.current.walkFrequency &&
+        !behaviorSettingsRef.current.floorCrawlFrequency &&
+        !behaviorSettingsRef.current.sitFrequency)
     ) {
       return;
     }
@@ -971,35 +994,42 @@ export function useCompanionBehavior({
         behaviorSettingsRef.current.randomSitActions,
       );
       const crawlTarget = canFloorCrawl ? pickWalkTarget() : null;
+      const walkTarget = canWalk ? pickWalkTarget() : null;
+      const nextAction = pickWeightedAction([
+        {
+          value: "floorCrawl" as const,
+          weight: crawlTarget === null
+            ? 0
+            : behaviorSettingsRef.current.floorCrawlFrequency,
+        },
+        {
+          value: "sit" as const,
+          weight:
+            !canSit || randomSitAction === null
+              ? 0
+              : behaviorSettingsRef.current.sitFrequency,
+        },
+        {
+          value: "walk" as const,
+          weight: walkTarget === null
+            ? 0
+            : behaviorSettingsRef.current.walkFrequency,
+        },
+      ]);
 
-      if (
-        crawlTarget !== null &&
-        Math.random() < behaviorSettingsRef.current.floorCrawlFrequency
-      ) {
+      if (nextAction === "floorCrawl" && crawlTarget !== null) {
         startFloorCrawlingTo(crawlTarget);
         return;
       }
 
-      if (
-        canSit &&
-        randomSitAction !== null &&
-        (!canWalk ||
-          Math.random() < AUTONOMOUS_SIT_CHANCE * actionFrequency)
-      ) {
+      if (nextAction === "sit" && randomSitAction !== null) {
         startSitting("auto", randomSitAction);
         return;
       }
 
-      if (!canWalk) {
-        return;
+      if (nextAction === "walk" && walkTarget !== null) {
+        startWalkingTo(walkTarget, false);
       }
-
-      const target = pickWalkTarget();
-      if (target === null) {
-        return;
-      }
-
-      startWalkingTo(target, false);
     }, randomIdleDelay(actionFrequency));
 
     return () => {
@@ -1027,12 +1057,15 @@ export function useCompanionBehavior({
       !isWallLocked ||
       isFrozen ||
       !behaviorSettingsRef.current.allowRandomWallClimb ||
-      behaviorSettingsRef.current.actionFrequency <= 0
+      behaviorSettingsRef.current.actionFrequency <= 0 ||
+      behaviorSettingsRef.current.wallClimbFrequency <= 0
     ) {
       return;
     }
 
-    const actionFrequency = behaviorSettingsRef.current.actionFrequency;
+    const actionFrequency =
+      behaviorSettingsRef.current.actionFrequency *
+      behaviorSettingsRef.current.wallClimbFrequency;
 
     const timeoutId = window.setTimeout(() => {
       if (behaviorStateRef.current !== "idle" || isFrozenRef.current) {
@@ -1079,12 +1112,15 @@ export function useCompanionBehavior({
       !isUndersideLocked ||
       isFrozen ||
       !behaviorSettingsRef.current.allowRandomCeilingCrawl ||
-      behaviorSettingsRef.current.actionFrequency <= 0
+      behaviorSettingsRef.current.actionFrequency <= 0 ||
+      behaviorSettingsRef.current.ceilingCrawlFrequency <= 0
     ) {
       return;
     }
 
-    const actionFrequency = behaviorSettingsRef.current.actionFrequency;
+    const actionFrequency =
+      behaviorSettingsRef.current.actionFrequency *
+      behaviorSettingsRef.current.ceilingCrawlFrequency;
 
     const timeoutId = window.setTimeout(() => {
       if (
@@ -1154,6 +1190,7 @@ export function useCompanionBehavior({
     behaviorStateRef,
     startDialogue,
     characterId,
+    frequency: normalizedBehaviorSettings.dialogueFrequency,
     dialogueSettings,
     isMuted,
   });
