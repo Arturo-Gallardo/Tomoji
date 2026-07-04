@@ -3,8 +3,8 @@ import { useCharacterAnimationRegistry } from "../../hooks/useCharacterAnimation
 import type { AnimationRegistry } from "../../services/animationRegistry";
 import { isBuiltinCharacterId } from "../../services/characterLibrary";
 import type { CompanionInstance } from "../../types/companionInstance";
-import { CompanionSprite } from "../companion/CompanionSprite";
 import { MutedIcon } from "../MutedIcon";
+import { FittedTomojiSprite } from "./FittedTomojiSprite";
 
 const CARD_SPRITE_HEIGHT = 72;
 
@@ -30,18 +30,14 @@ interface TomojiCardSpriteProps {
 
 function TomojiCardSprite({ registry }: TomojiCardSpriteProps) {
   const idleFrame = registry.getAnimation("idle").frames[0];
-  const scale = CARD_SPRITE_HEIGHT / registry.spriteHeight;
 
   return (
-    <CompanionSprite
+    <FittedTomojiSprite
       frameSrc={idleFrame}
       facing="left"
       action="idle"
-      interactive={false}
-      scale={scale}
-      spriteWidth={registry.spriteWidth}
-      spriteHeight={registry.spriteHeight}
-      spriteAnchor={registry.getSpriteAnchor("idle")}
+      targetHeight={CARD_SPRITE_HEIGHT}
+      maxWidth={CARD_SPRITE_HEIGHT * 1.5}
     />
   );
 }

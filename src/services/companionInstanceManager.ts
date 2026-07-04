@@ -360,7 +360,6 @@ export async function addInstance(
   );
 
   await writeStoredInstances([...instances, instance]);
-  await spawnInstanceWindow(instance);
   return instance;
 }
 

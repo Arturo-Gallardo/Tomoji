@@ -25,7 +25,7 @@ interface CompanionSpriteProps {
   onContextMenu?: (event: React.MouseEvent<HTMLElement>) => void;
 }
 
-function shouldFlipSprite(
+export function shouldFlipSprite(
   action: CompanionAction,
   facing: FacingDirection,
   wallSide: WindowWallSide | null | undefined,

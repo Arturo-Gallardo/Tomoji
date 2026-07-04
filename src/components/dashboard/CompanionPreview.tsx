@@ -3,8 +3,8 @@ import { useCompanionAnimation } from "../../hooks/useCompanionAnimation";
 import { useCompanionMirrorState } from "../../hooks/useCompanionMirrorState";
 import type { AnimationRegistry } from "../../services/animationRegistry";
 import type { CompanionInstance } from "../../types/companionInstance";
-import { CompanionSprite } from "../companion/CompanionSprite";
 import { MutedIcon } from "../MutedIcon";
+import { FittedTomojiSprite } from "./FittedTomojiSprite";
 
 const PREVIEW_SCALE = 3;
 
@@ -30,7 +30,6 @@ function CompanionPreviewInner({
     grabbedLeanTier: mirrorState.grabbedLeanTier,
   });
 
-  const previewWidth = registry.spriteWidth * PREVIEW_SCALE;
   const previewHeight = registry.spriteHeight * PREVIEW_SCALE;
 
   return (
@@ -43,18 +42,14 @@ function CompanionPreviewInner({
       ) : null}
       <div
         className="flex items-center justify-center"
-        style={{ width: previewWidth, height: previewHeight }}
+        style={{ minHeight: previewHeight }}
       >
-        <CompanionSprite
+        <FittedTomojiSprite
           frameSrc={frameSrc}
           facing={mirrorState.facing}
           action={mirrorState.action}
-          isDragging={mirrorState.isDragging}
-          interactive={false}
-          scale={PREVIEW_SCALE}
-          spriteWidth={registry.spriteWidth}
-          spriteHeight={registry.spriteHeight}
-          spriteAnchor={registry.getSpriteAnchor(mirrorState.action)}
+          targetHeight={previewHeight}
+          maxWidth={registry.spriteWidth * PREVIEW_SCALE}
         />
       </div>
     </section>
