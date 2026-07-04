@@ -23,6 +23,7 @@ import {
 } from "../types/character";
 import type { SurfaceLock } from "../types/companion";
 import type { CompanionMenuAnimationAction } from "../types/companionMenu";
+import { getMaxImageSize } from "../utils/frameGeometry";
 import { characterDirPath } from "./fs/appPaths";
 import { joinPath, toAssetUrl } from "./fs/fileSystemAdapter";
 
@@ -271,8 +272,8 @@ async function buildImportedRegistry(
   manifest: CharacterManifest,
 ): Promise<AnimationRegistry> {
   const speed = manifest.defaultSpeed;
-  const width = manifest.frameWidth;
-  const height = manifest.frameHeight;
+  let width = manifest.frameWidth;
+  let height = manifest.frameHeight;
 
   const categoryData = new Map<AnimationCategory, ResolvedCategoryData>();
 
@@ -292,6 +293,17 @@ async function buildImportedRegistry(
 
     categoryData.set(slot, { frames, tickDuration, frameTickDurations });
   }
+
+  const importedFrameSize = await getMaxImageSize(
+    Array.from(
+      new Set(
+        Array.from(categoryData.values()).flatMap((data) => data.frames),
+      ),
+    ),
+    { width, height },
+  );
+  width = Math.max(width, importedFrameSize.width);
+  height = Math.max(height, importedFrameSize.height);
 
   const idleFrames = categoryData.get("idle")?.frames ?? [];
 

@@ -1,5 +1,4 @@
 import {
-  getSpriteAnchorForAction,
   SPRITE_HEIGHT,
   SPRITE_WIDTH,
 } from "../../animations/beyondBirthday";
@@ -73,12 +72,10 @@ export function CompanionSprite({
   scale = 1,
   spriteWidth = SPRITE_WIDTH,
   spriteHeight = SPRITE_HEIGHT,
-  spriteAnchor: spriteAnchorProp,
   onPointerDown,
   onContextMenu,
 }: CompanionSpriteProps) {
   const flipScale = shouldFlipSprite(action, facing, wallSide) ? -1 : 1;
-  const spriteAnchor = spriteAnchorProp ?? getSpriteAnchorForAction(action);
   const width = spriteWidth * scale;
   const height = spriteHeight * scale;
 
@@ -93,13 +90,11 @@ export function CompanionSprite({
         draggable={false}
         onPointerDown={interactive ? onPointerDown : undefined}
         onContextMenu={interactive ? onContextMenu : undefined}
-        className="absolute left-0 top-0 max-w-none touch-none select-none"
+        className="absolute bottom-0 left-1/2 max-h-full max-w-full touch-none select-none object-contain object-bottom"
         style={{
-          width,
-          height,
           cursor: interactive ? (isDragging ? "grabbing" : "grab") : "default",
-          transform: `scaleX(${flipScale})`,
-          transformOrigin: `${spriteAnchor.x * scale}px ${spriteAnchor.y * scale}px`,
+          transform: `translateX(-50%) scaleX(${flipScale})`,
+          transformOrigin: "center bottom",
         }}
       />
     </div>

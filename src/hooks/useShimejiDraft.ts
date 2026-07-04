@@ -11,7 +11,7 @@ import type {
   CategoryAssignments,
   ShimejiDraft,
 } from "../types/shimejiDraft";
-import { getImageSize } from "../utils/imageSize";
+import { getMaxImageSize } from "../utils/frameGeometry";
 
 const DEFAULT_FPS = 8;
 const DEFAULT_FRAME_SIZE = 128;
@@ -100,6 +100,17 @@ export function useShimejiDraft() {
     setIsLoadingFolder(true);
     try {
       const incoming = await listShimejiFrames(dir);
+      const spriteSources = incoming.filter(isLikelySpriteFrame);
+      const sizeSources =
+        spriteSources.length > 0
+          ? spriteSources
+          : incoming.filter(
+              (source) => !source.name.toLowerCase().startsWith("icon."),
+            );
+      const incomingFrameSize = await getMaxImageSize(
+        sizeSources.map((source) => source.url),
+        { width: DEFAULT_FRAME_SIZE, height: DEFAULT_FRAME_SIZE },
+      );
       setDraft((current) => {
         const known = new Set(current.sources.map((source) => source.path));
         const merged = [...current.sources];
@@ -116,7 +127,12 @@ export function useShimejiDraft() {
           a.name.localeCompare(b.name, undefined, { numeric: true }),
         );
 
-        return { ...current, sources: merged };
+        return {
+          ...current,
+          sources: merged,
+          frameWidth: Math.max(current.frameWidth, incomingFrameSize.width),
+          frameHeight: Math.max(current.frameHeight, incomingFrameSize.height),
+        };
       });
     } finally {
       setIsLoadingFolder(false);
@@ -132,31 +148,26 @@ export function useShimejiDraft() {
     setIsLoadingFolder(true);
     try {
       const sources = await listShimejiFrames(dir);
-      let frameWidth = DEFAULT_FRAME_SIZE;
-      let frameHeight = DEFAULT_FRAME_SIZE;
-
-      const sizeSource =
-        sources.find(isLikelySpriteFrame) ??
-        sources.find((source) => !source.name.toLowerCase().startsWith("icon."));
-
-      if (sizeSource) {
-        try {
-          const size = await getImageSize(sizeSource.url);
-          frameWidth = size.width;
-          frameHeight = size.height;
-        } catch {
-          // fall back to the default frame size if the image can't be measured
-        }
-      }
+      const spriteSources = sources.filter(isLikelySpriteFrame);
+      const sizeSources =
+        spriteSources.length > 0
+          ? spriteSources
+          : sources.filter(
+              (source) => !source.name.toLowerCase().startsWith("icon."),
+            );
+      const frameSize = await getMaxImageSize(
+        sizeSources.map((source) => source.url),
+        { width: DEFAULT_FRAME_SIZE, height: DEFAULT_FRAME_SIZE },
+      );
 
       setDraft((current) => ({
         ...current,
         imgDir: dir,
         sources,
         assignments: emptyAssignments(),
-        scale: defaultScaleForFrameHeight(frameHeight),
-        frameWidth,
-        frameHeight,
+        scale: defaultScaleForFrameHeight(frameSize.height),
+        frameWidth: frameSize.width,
+        frameHeight: frameSize.height,
       }));
     } finally {
       setIsLoadingFolder(false);

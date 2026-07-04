@@ -5,7 +5,7 @@ import {
   type CharacterManifest,
 } from "../types/character";
 import type { ShimejiDraft, ShimejiSourceFrame } from "../types/shimejiDraft";
-import { getImageSize } from "../utils/imageSize";
+import { getMaxImageSize } from "../utils/frameGeometry";
 import { addCharacter, getCharacter, allocateNewTomojiFolderName } from "./characterLibrary";
 import {
   DEFAULT_BEHAVIOR_SETTINGS,
@@ -25,10 +25,12 @@ import {
   listDirectory,
   pathExists,
   pickDirectory,
+  readBinary,
   removePath,
   renamePath,
   readText,
   toAssetUrl,
+  writeBinary,
   writeJson,
 } from "./fs/fileSystemAdapter";
 
@@ -179,9 +181,7 @@ function buildAnimations(
     animations[category] = {
       fps: assignment.fps,
       frames: assignment.frames.map((source, index) => ({
-        src: `sprites/${category}/${index}.${
-          imageExtension(source) ?? "png"
-        }`,
+        src: `sprites/${category}/${index}.png`,
         source: sourcePathByInput.get(source),
         durationTicks: assignment.durationTicks?.[index],
       })),
@@ -459,18 +459,13 @@ function averageWalkSpeed(
   return velocities.reduce((sum, velocity) => sum + velocity, 0) / velocities.length;
 }
 
-async function measureFrameSize(
-  framePath: string | undefined,
+async function measureMaxFrameSize(
+  framePaths: readonly string[],
 ): Promise<{ width: number; height: number }> {
-  if (!framePath) {
-    return { width: DEFAULT_FRAME_SIZE, height: DEFAULT_FRAME_SIZE };
-  }
-
-  try {
-    return await getImageSize(toAssetUrl(framePath));
-  } catch {
-    return { width: DEFAULT_FRAME_SIZE, height: DEFAULT_FRAME_SIZE };
-  }
+  return getMaxImageSize(
+    framePaths.map((path) => toAssetUrl(path)),
+    { width: DEFAULT_FRAME_SIZE, height: DEFAULT_FRAME_SIZE },
+  );
 }
 
 function defaultScaleForFrameHeight(frameHeight: number): number {
@@ -652,8 +647,11 @@ export async function buildShimejiDraftFromFolder(
     throw new Error("Could not identify required idle/walk frames from this Shimeji folder.");
   }
 
-  const measuredFrame = await measureFrameSize(
-    assignments.idle.frames[0] ?? assignments.walk.frames[0],
+  const assignedPaths = assignedFramePaths(assignments);
+  const measuredFrame = await measureMaxFrameSize(
+    assignedPaths.length > 0
+      ? assignedPaths
+      : sources.map((source) => source.path),
   );
 
   return {
@@ -676,13 +674,108 @@ export async function convertShimejiFolder(inputDir: string): Promise<string> {
   return convertShimejiDraft(draft);
 }
 
+function imageMimeType(pathOrName: string): string {
+  const extension = imageExtension(pathOrName);
+  if (extension === "jpg" || extension === "jpeg") {
+    return "image/jpeg";
+  }
+  return extension ? `image/${extension}` : "image/png";
+}
+
+function canvasToPngBytes(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("failed to encode sprite frame"));
+        return;
+      }
+
+      blob
+        .arrayBuffer()
+        .then((buffer) => resolve(new Uint8Array(buffer)))
+        .catch(reject);
+    }, "image/png");
+  });
+}
+
+async function loadImageBitmap(sourcePath: string): Promise<ImageBitmap> {
+  const bytes = await readBinary(sourcePath);
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  );
+  const blob = new Blob([buffer], { type: imageMimeType(sourcePath) });
+  return createImageBitmap(blob);
+}
+
+function assignedFramePaths(assignments: ShimejiDraft["assignments"]): string[] {
+  return Array.from(
+    new Set(Object.values(assignments).flatMap((assignment) => assignment.frames)),
+  );
+}
+
+async function exportFrameSize(
+  draft: ShimejiDraft,
+): Promise<{ width: number; height: number }> {
+  let width = draft.frameWidth;
+  let height = draft.frameHeight;
+
+  for (const path of assignedFramePaths(draft.assignments)) {
+    try {
+      const bitmap = await loadImageBitmap(path);
+      width = Math.max(width, bitmap.width);
+      height = Math.max(height, bitmap.height);
+      bitmap.close();
+    } catch {
+      // keep draft geometry if a source frame can't be decoded
+    }
+  }
+
+  return { width, height };
+}
+
+async function writeNormalizedSpriteFrame(
+  sourcePath: string,
+  destPath: string,
+  frameWidth: number,
+  frameHeight: number,
+): Promise<void> {
+  const bitmap = await loadImageBitmap(sourcePath);
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = frameWidth;
+    canvas.height = frameHeight;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("2d canvas context unavailable");
+    }
+
+    context.imageSmoothingEnabled = false;
+
+    const x = Math.round((frameWidth - bitmap.width) / 2);
+    const y = frameHeight - bitmap.height;
+
+    context.clearRect(0, 0, frameWidth, frameHeight);
+    context.drawImage(bitmap, x, y);
+
+    await writeBinary(destPath, await canvasToPngBytes(canvas));
+  } finally {
+    bitmap.close();
+  }
+}
+
 async function writeDraftSprites(
   characterId: string,
   draft: ShimejiDraft,
-): Promise<Map<string, string>> {
+): Promise<{
+  sourcePathByInput: Map<string, string>;
+  frameSize: { width: number; height: number };
+}> {
   const destDir = await characterDirPath(characterId);
   const spritesDir = await characterSpritesDirPath(characterId);
   const sourcesDir = await characterSourcesDirPath(characterId);
+  const frameSize = await exportFrameSize(draft);
   const transactionId = crypto.randomUUID();
   const spritesStagingDir = `${spritesDir}.${transactionId}.tmp`;
   const spritesBackupDir = `${spritesDir}.${transactionId}.bak`;
@@ -734,11 +827,13 @@ async function writeDraftSprites(
 
       for (let index = 0; index < assignment.frames.length; index += 1) {
         const source = assignment.frames[index];
-        const dest = await joinPath(
-          categoryDir,
-          `${index}.${imageExtension(source) ?? "png"}`,
+        const dest = await joinPath(categoryDir, `${index}.png`);
+        await writeNormalizedSpriteFrame(
+          source,
+          dest,
+          frameSize.width,
+          frameSize.height,
         );
-        await copyFile(source, dest);
       }
     }
 
@@ -759,7 +854,7 @@ async function writeDraftSprites(
       removePath(spritesBackupDir),
       removePath(sourcesBackupDir),
     ]);
-    return sourcePathByInput;
+    return { sourcePathByInput, frameSize };
   } catch (error) {
     await removePath(spritesStagingDir);
     await removePath(sourcesStagingDir);
@@ -828,6 +923,8 @@ export async function loadCharacterDraft(
     };
   }
 
+  const frameSize = await measureMaxFrameSize(assignedFramePaths(assignments));
+
   return {
     imgDir: characterDir,
     sources,
@@ -838,8 +935,8 @@ export async function loadCharacterDraft(
     behavior: normalizeBehaviorSettings(manifest.behaviorSettings),
     scale: manifest.defaultScale,
     speed: manifest.defaultSpeed,
-    frameWidth: manifest.frameWidth,
-    frameHeight: manifest.frameHeight,
+    frameWidth: Math.max(manifest.frameWidth, frameSize.width),
+    frameHeight: Math.max(manifest.frameHeight, frameSize.height),
   };
 }
 
@@ -853,12 +950,15 @@ export async function saveCharacterDraft(
     throw new Error("character not found");
   }
 
-  const sourcePathByInput = await writeDraftSprites(characterId, draft);
+  const { sourcePathByInput, frameSize } = await writeDraftSprites(
+    characterId,
+    draft,
+  );
 
   const manifest: CharacterManifest = {
     ...entry.manifest,
-    frameWidth: draft.frameWidth,
-    frameHeight: draft.frameHeight,
+    frameWidth: frameSize.width,
+    frameHeight: frameSize.height,
     animations: buildAnimations(draft, sourcePathByInput),
   };
 
@@ -866,8 +966,8 @@ export async function saveCharacterDraft(
   await addCharacter({ ...entry, manifest });
 }
 
-// converts the wizard draft into the Tomoji folder structure: copies the
-// chosen image files into characters/<id>/sprites/<category>/<n>.<ext>, keeps
+// converts the wizard draft into the Tomoji folder structure: writes normalized
+// frames into characters/<id>/sprites/<category>/<n>.png, keeps
 // editable originals in characters/<id>/source, and writes a valid manifest.json.
 export async function convertShimejiDraft(
   draft: ShimejiDraft,
@@ -876,7 +976,7 @@ export async function convertShimejiDraft(
   const id = await allocateNewTomojiFolderName(name);
   const destDir = await characterDirPath(id);
   await ensureDir(destDir);
-  const sourcePathByInput = await writeDraftSprites(id, draft);
+  const { sourcePathByInput, frameSize } = await writeDraftSprites(id, draft);
 
   const manifest: CharacterManifest = {
     id,
@@ -885,8 +985,8 @@ export async function convertShimejiDraft(
     author: "Imported (Shimeji)",
     defaultScale: draft.scale,
     defaultSpeed: draft.speed,
-    frameWidth: draft.frameWidth,
-    frameHeight: draft.frameHeight,
+    frameWidth: frameSize.width,
+    frameHeight: frameSize.height,
     animations: buildAnimations(draft, sourcePathByInput),
     behaviorSettings: normalizeBehaviorSettings(draft.behavior),
     dialogueSettings: {

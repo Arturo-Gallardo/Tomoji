@@ -1,4 +1,4 @@
-image sometimes gets stretched
+- image sometimes gets stretched
 
 when importing it automatically turns off, but the logic says its off
 
