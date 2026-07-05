@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useCompanionInstances } from "../../hooks/useCompanionInstances";
 import { openCharactersFolder } from "../../services/tomojiStorage";
-import { ShimejiImportWizard } from "../wizard/ShimejiImportWizard";
 import { ShimejiFolderImportScreen } from "../import/ShimejiFolderImportScreen";
 import { TomojiImportScreen } from "../import/TomojiImportScreen";
 import { AddTomojiModal } from "./AddTomojiModal";
@@ -15,7 +14,6 @@ type TomojiFlow =
   | "list"
   | "archive"
   | "add"
-  | "createTomoji"
   | "importTomoji"
   | "importShimeji"
   | "edit"
@@ -148,15 +146,6 @@ export function TomojisView() {
     );
   }
 
-  if (flow === "createTomoji") {
-    return (
-      <ShimejiImportWizard
-        onClose={() => setFlow("list")}
-        onImported={handleImported}
-      />
-    );
-  }
-
   if (flow === "importShimeji") {
     return (
       <ShimejiFolderImportScreen
@@ -252,7 +241,6 @@ export function TomojisView() {
       {flow === "add" ? (
         <AddTomojiModal
           onClose={() => setFlow("list")}
-          onCreateNew={() => setFlow("createTomoji")}
           onImportTomoji={() => setFlow("importTomoji")}
           onImportShimeji={() => setFlow("importShimeji")}
         />

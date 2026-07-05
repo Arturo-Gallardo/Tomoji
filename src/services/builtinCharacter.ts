@@ -1,5 +1,5 @@
 import { emit } from "@tauri-apps/api/event";
-import { TICK_INTERVAL_MS } from "../animations/beyondBirthday";
+import { TICK_INTERVAL_MS } from "../animations/companionGeometry";
 import { BUILTIN_DEFAULT_DIALOGUE_LINES } from "../content/motivationalQuotes";
 import type {
   AnimationCategory,
@@ -167,7 +167,13 @@ function createDefaultManifest(): CharacterManifest {
       floorCrawlFrequency: 0.1,
       allowRandomSit: true,
       sitFrequency: 0.35,
-      randomSitActions: ["sit", "sitAlt", "sitAlt2"],
+      randomSitActions: [
+        "sit",
+        "sitAlt",
+        "sitAlt2",
+        "sitOnBar",
+        "dangleOnBar",
+      ],
       allowRandomWallClimb: true,
       wallClimbFrequency: 1,
       allowRandomCeilingCrawl: true,

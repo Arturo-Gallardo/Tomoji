@@ -1,4 +1,5 @@
 import type { Velocity } from "../animations/types";
+import type { ShimejiAnimationGraph } from "./shimejiGraph";
 
 // a single frame of an animation. src is relative to the character folder root
 // for imported characters (e.g. "sprites/walk/0.png" or ".gif") or a resolvable url.
@@ -107,7 +108,12 @@ export function hasRequiredAnimationAssignments(
   );
 }
 
-export type RandomSitAction = "sit" | "sitAlt" | "sitAlt2";
+export type RandomSitAction =
+  | "sit"
+  | "sitAlt"
+  | "sitAlt2"
+  | "sitOnBar"
+  | "dangleOnBar";
 
 export interface BehaviorSettings {
   // multiplier applied to the character base walk velocity
@@ -137,6 +143,7 @@ export interface DialogueSettings {
 }
 
 export type AnimationPlaybackStyle = "shimeji" | "sequential";
+export type AnimationSystem = "legacySlots" | "shimejiGraph";
 
 export interface CharacterManifest {
   id: string;
@@ -149,6 +156,8 @@ export interface CharacterManifest {
   frameWidth: number;
   frameHeight: number;
   animations: Partial<Record<AnimationCategory, AnimationDefinition>>;
+  animationSystem?: AnimationSystem;
+  shimejiGraph?: ShimejiAnimationGraph;
   behaviorSettings: BehaviorSettings;
   dialogueSettings: DialogueSettings;
   // shimeji = classic walk/climb index cycle; sequential = 1→2→… loop

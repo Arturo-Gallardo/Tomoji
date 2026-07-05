@@ -42,8 +42,6 @@ import {
 } from "../utils/windowSurfaces";
 import { useCompanionWindowSurfaces } from "./useCompanionWindowSurfaces";
 
-const WALL_SPRITE_SURFACE_NUDGE = -5;
-
 interface UseCompanionMovementOptions {
   registry: AnimationRegistry;
   scale: number;
@@ -145,19 +143,10 @@ export function useCompanionMovement(
     return registry.getSpriteAnchor("idle").y * scale;
   }, [registry, scale]);
 
-  const getAnchorXOffset = useCallback((): number => {
-    const baseOffset = (registry.spriteWidth / 2) * scale;
-    const lock = surfaceLockRef.current;
-
-    if (!lock || !isWallLock(lock.kind)) {
-      return baseOffset;
-    }
-
-    const nudge = WALL_SPRITE_SURFACE_NUDGE * scale;
-    return lock.kind === "wallLeft" ? baseOffset - nudge : baseOffset + nudge;
-  }, [registry.spriteWidth, scale]);
+  const anchorXOffset = (registry.spriteWidth / 2) * scale;
   const undersideProbeYOffset =
-    (registry.getSpriteAnchor("idle").y - registry.spriteHeight / 2) * scale;
+    (registry.getSpriteAnchor("idle").y - registry.spriteHeight / 2) *
+    scale;
 
   useEffect(() => {
     desktopBoundsRef.current = desktopBounds;
@@ -288,7 +277,10 @@ export function useCompanionMovement(
     (x: number, y: number): ScreenPosition => {
       const lock = surfaceLockRef.current;
 
-      if (lock && (isWallLock(lock.kind) || isUndersideLock(lock.kind))) {
+      if (
+        lock &&
+        (isWallLock(lock.kind) || isUndersideLock(lock.kind))
+      ) {
         return clampLockedPosition(x, y);
       }
 
@@ -342,17 +334,13 @@ export function useCompanionMovement(
       setAnchorXState(nextPosition.x);
       setAnchorYState(nextPosition.y);
 
-      await setCompanionPosition(
-        nextPosition,
-        getAnchorYOffset(),
-        getAnchorXOffset(),
-      );
+      await setCompanionPosition(nextPosition, getAnchorYOffset(), anchorXOffset);
     },
     [
+      anchorXOffset,
       clampGroundedPosition,
       clampLockedPosition,
       clampToWallsPosition,
-      getAnchorXOffset,
       getAnchorYOffset,
       refreshDesktopBoundsIfNeeded,
     ],
@@ -391,14 +379,18 @@ export function useCompanionMovement(
     void setCompanionPosition(
       nextPosition,
       registry.getSpriteAnchor("idle").y * scale,
-      getAnchorXOffset(),
+      anchorXOffset,
     );
-  }, [clearSurfaceLock, getAnchorXOffset, registry, scale]);
+  }, [anchorXOffset, clearSurfaceLock, registry, scale]);
 
   const findSurfaceLockAt = useCallback(
     async (x: number, y: number): Promise<SurfaceLockCandidate | null> => {
       try {
-        const hit = await hitWindowSurfaceAt(x, y, y - undersideProbeYOffset);
+        const hit = await hitWindowSurfaceAt(
+          x,
+          y,
+          y - undersideProbeYOffset,
+        );
 
         if (hit) {
           return {
@@ -491,9 +483,8 @@ export function useCompanionMovement(
     }
 
     if (hasLockedSurfaceMoved(previousSnapshot, lockedSurface)) {
-      lockedSurfaceCacheRef.current = lockedSurface;
-      lockedSurfaceSnapshotRef.current = toLockedSurfaceSnapshot(lockedSurface);
-      void applyAnchorPositionRef.current(anchorRef.current, "locked");
+      clearSurfaceLock();
+      onSurfaceLockLostRef.current?.();
       return;
     }
 
@@ -547,7 +538,8 @@ export function useCompanionMovement(
         return false;
       }
 
-      const mode = lock && isUndersideLock(lock.kind) ? "locked" : "grounded";
+      const mode =
+        lock && isUndersideLock(lock.kind) ? "locked" : "grounded";
 
       void applyAnchorPosition(
         {
@@ -592,9 +584,13 @@ export function useCompanionMovement(
     async (nextX: number) => {
       const current = anchorRef.current;
       const lock = surfaceLockRef.current;
-      const mode = lock && isUndersideLock(lock.kind) ? "locked" : "grounded";
+      const mode =
+        lock && isUndersideLock(lock.kind) ? "locked" : "grounded";
 
-      await applyAnchorPosition({ x: clampAnchorX(nextX), y: current.y }, mode);
+      await applyAnchorPosition(
+        { x: clampAnchorX(nextX), y: current.y },
+        mode,
+      );
     },
     [applyAnchorPosition, clampAnchorX],
   );
@@ -637,7 +633,8 @@ export function useCompanionMovement(
     isWallLocked:
       surfaceLock !== null &&
       (surfaceLock.kind === "wallLeft" || surfaceLock.kind === "wallRight"),
-    isUndersideLocked: surfaceLock !== null && surfaceLock.kind === "underside",
+    isUndersideLocked:
+      surfaceLock !== null && surfaceLock.kind === "underside",
     moveBy,
     moveByY,
     setAnchorX,

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useShimejiDraft } from "../../hooks/useShimejiDraft";
+import { getCharacter } from "../../services/characterLibrary";
 import { saveCharacterDraft } from "../../services/shimejiImporter";
 import { hasRequiredAnimationAssignments } from "../../types/character";
 import { AssignAnimationsStep } from "../wizard/AssignAnimationsStep";
 import { FinalPreviewStep } from "../wizard/FinalPreviewStep";
+import { ShimejiGraphEditor } from "./ShimejiGraphEditor";
 import { TomojiPageHeader } from "./TomojiPageHeader";
 import { TomojiPageLayout } from "./TomojiPageLayout";
 
@@ -25,6 +27,7 @@ export function CharacterFrameEditor({
   const controller = useShimejiDraft();
   const [step, setStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGraphImport, setIsGraphImport] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -36,18 +39,43 @@ export function CharacterFrameEditor({
   useEffect(() => {
     let cancelled = false;
 
-    void loadFromCharacter(characterId).catch((caught) => {
-      if (!cancelled) {
-        setLoadError(
-          caught instanceof Error ? caught.message : "failed to load frames",
-        );
-      }
-    });
+    void getCharacter(characterId)
+      .then(async (entry) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (entry?.manifest.animationSystem === "shimejiGraph") {
+          setIsGraphImport(true);
+          return;
+        }
+
+        setIsGraphImport(false);
+        await loadFromCharacter(characterId);
+      })
+      .catch((caught) => {
+        if (!cancelled) {
+          setLoadError(
+            caught instanceof Error ? caught.message : "failed to load frames",
+          );
+        }
+      });
 
     return () => {
       cancelled = true;
     };
   }, [characterId, loadFromCharacter]);
+
+  if (isGraphImport) {
+    return (
+      <ShimejiGraphEditor
+        characterId={characterId}
+        characterName={characterName}
+        onClose={onClose}
+        onSaved={onSaved}
+      />
+    );
+  }
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -81,7 +109,7 @@ export function CharacterFrameEditor({
     );
   }
 
-  if (isLoadingFolder && draft.sources.length === 0) {
+  if ((isGraphImport === null || isLoadingFolder) && draft.sources.length === 0) {
     return (
       <TomojiPageLayout
         header={

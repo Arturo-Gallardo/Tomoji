@@ -1,4 +1,4 @@
-import { SPRITE_ANCHOR } from "../animations/beyondBirthday";
+import { SPRITE_ANCHOR } from "../animations/companionGeometry";
 import type { DesktopBounds, MonitorWorkArea, ScreenPosition } from "../types/companion";
 
 interface WallPadding {

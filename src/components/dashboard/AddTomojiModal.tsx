@@ -1,6 +1,5 @@
 interface AddTomojiModalProps {
   onClose: () => void;
-  onCreateNew: () => void;
   onImportTomoji: () => void;
   onImportShimeji: () => void;
 }
@@ -15,28 +14,21 @@ interface AddOption {
 
 export function AddTomojiModal({
   onClose,
-  onCreateNew,
   onImportTomoji,
   onImportShimeji,
 }: AddTomojiModalProps) {
   const options: AddOption[] = [
     {
-      id: "create",
-      label: "Create New",
-      description: "Pick frames manually and build animations",
-      onSelect: onCreateNew,
+      id: "import-shimeji",
+      label: "Import Shimeji",
+      description: "Best path: preserve Shimeji actions, poses, anchors, and timing",
+      onSelect: onImportShimeji,
     },
     {
       id: "import-tomoji",
-      label: "Import Tomoji",
-      description: "Load a .tomoji character folder",
+      label: "Import Tomoji folder",
+      description: "Load an existing Tomoji character folder",
       onSelect: onImportTomoji,
-    },
-    {
-      id: "import-shimeji",
-      label: "Import Shimeji",
-      description: "Auto-convert a full Shimeji folder",
-      onSelect: onImportShimeji,
     },
   ];
 

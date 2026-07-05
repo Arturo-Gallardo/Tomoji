@@ -1,4 +1,4 @@
-import { SPRITE_ANCHOR, SPRITE_HEIGHT } from "../animations/beyondBirthday";
+import { SPRITE_ANCHOR, SPRITE_HEIGHT } from "../animations/companionGeometry";
 import type {
   DesktopBounds,
   MonitorWorkArea,

@@ -3,6 +3,8 @@ import {
   TICK_INTERVAL_MS,
   TITLE_BAR_SIT_ANCHOR,
   UNDERSIDE_GRAB_ANCHOR,
+} from "../animations/companionGeometry";
+import {
   resolveDisplayAction,
 } from "../animations/beyondBirthday";
 import type {
@@ -21,6 +23,12 @@ import {
   type CharacterManifest,
   type RandomSitAction,
 } from "../types/character";
+import type {
+  ShimejiActionIntent,
+  ShimejiAnimationGraph,
+  ShimejiGraphAction,
+  ShimejiGraphPose,
+} from "../types/shimejiGraph";
 import type { SurfaceLock } from "../types/companion";
 import type { CompanionMenuAnimationAction } from "../types/companionMenu";
 import { getMaxImageSize } from "../utils/frameGeometry";
@@ -45,8 +53,9 @@ export interface AnimationRegistry {
     action: CompanionAction,
     lock: SurfaceLock | null,
   ) => CompanionAction;
+  animateGrabbed: boolean;
   getGrabbedLeanFrame: (tier: GrabbedLeanTier) => string;
-  // picks a floor sit variant among assigned sit / sitAlt / sitAlt2 slots
+  // picks a sit variant among assigned sitting slots
   pickFloorSitAction: (
     allowedActions?: readonly RandomSitAction[],
   ) => RandomSitAction | null;
@@ -58,11 +67,9 @@ const FLOOR_SIT_ACTIONS: readonly RandomSitAction[] = [
   "sit",
   "sitAlt",
   "sitAlt2",
+  "sitOnBar",
+  "dangleOnBar",
 ];
-
-function isFloorSitAction(action: CompanionAction): boolean {
-  return (FLOOR_SIT_ACTIONS as readonly CompanionAction[]).includes(action);
-}
 
 // each engine action maps to one manifest slot.
 const ACTION_TO_CATEGORY: Record<CompanionAction, AnimationCategory> = {
@@ -95,6 +102,8 @@ const CONTEXT_MENU_ACTIONS: readonly CompanionMenuAnimationAction[] = [
   "sit",
   "sitAlt",
   "sitAlt2",
+  "sitOnBar",
+  "dangleOnBar",
   "emote",
   "emote2",
   "emote3",
@@ -102,6 +111,35 @@ const CONTEXT_MENU_ACTIONS: readonly CompanionMenuAnimationAction[] = [
   "emote5",
   "emote6",
 ];
+
+const EMOTE_ACTIONS: readonly CompanionMenuAnimationAction[] = [
+  "emote",
+  "emote2",
+  "emote3",
+  "emote4",
+  "emote5",
+  "emote6",
+];
+
+const ACTION_TO_SHIMEJI_INTENT: Partial<Record<CompanionAction, ShimejiActionIntent>> = {
+  idle: "idle",
+  walk: "walk",
+  floorCrawl: "floorCrawl",
+  sit: "sit",
+  sitAlt: "sitAlt",
+  sitAlt2: "sitAlt2",
+  sitOnBar: "sitOnBar",
+  dangleOnBar: "dangleOnBar",
+  fall: "fall",
+  bounce: "bounce",
+  grabbed: "dragged",
+  resist: "dragResist",
+  grabWall: "grabWall",
+  climbWall: "climbWall",
+  climbWallDown: "climbWall",
+  grabCeiling: "grabCeiling",
+  climbCeiling: "climbCeiling",
+};
 
 const LEAN_TIER_TO_CATEGORY: Record<GrabbedLeanTier, AnimationCategory> = {
   lightLeft: "dragLightLeft",
@@ -141,7 +179,7 @@ const LEGACY_CATEGORY_FALLBACKS: Partial<
   sitAlt: ["sitAlt", "sit"],
   sitAlt2: ["sitAlt2", "sit"],
   sitOnBar: ["sitOnBar", "sit"],
-  dangleOnBar: ["dangleOnBar", "sit"],
+  dangleOnBar: ["dangleOnBar", "sitOnBar", "sit"],
   emote: ["emote", "emotes"],
 };
 
@@ -177,14 +215,26 @@ function resolveActionVelocity(
   configured: { x: number; y: number } | undefined,
   speed: number,
 ): { x: number; y: number } {
-  const velocity = configured ?? actionVelocity(action, speed);
+  const fallback = actionVelocity(action, speed);
+  const velocity = configured ?? fallback;
+
+  if (
+    (action === "walk" ||
+      action === "floorCrawl" ||
+      action === "climbCeiling") &&
+    velocity.x === 0
+  ) {
+    return fallback;
+  }
 
   if (action === "climbWall") {
-    return { x: velocity.x, y: -Math.abs(velocity.y) };
+    const y = velocity.y === 0 ? fallback.y : velocity.y;
+    return { x: velocity.x, y: -Math.abs(y) };
   }
 
   if (action === "climbWallDown") {
-    return { x: velocity.x, y: Math.abs(velocity.y) };
+    const y = velocity.y === 0 ? fallback.y : velocity.y;
+    return { x: velocity.x, y: Math.abs(y) };
   }
 
   return velocity;
@@ -208,6 +258,20 @@ function importedSpriteAnchor(
     };
   }
   return { x: width / 2, y: height };
+}
+
+function graphSpriteAnchor(
+  action: CompanionAction,
+  canvas: ShimejiAnimationGraph["spriteCanvas"],
+): SpriteAnchor {
+  if (action === "grabCeiling" || action === "climbCeiling") {
+    return {
+      x: canvas.anchor.x,
+      y: canvas.height * (UNDERSIDE_GRAB_ANCHOR.y / SPRITE_HEIGHT),
+    };
+  }
+
+  return canvas.anchor;
 }
 
 async function resolveCategoryFrames(
@@ -362,23 +426,6 @@ async function buildImportedRegistry(
       0,
   );
 
-  const resolveImportedDisplayAction = (
-    action: CompanionAction,
-    lock: SurfaceLock | null,
-  ): CompanionAction => {
-    if (lock?.kind === "titleBar" && isFloorSitAction(action)) {
-      if (hasCategoryFrames("dangleOnBar")) {
-        return "dangleOnBar";
-      }
-      if (hasCategoryFrames("sitOnBar")) {
-        return "sitOnBar";
-      }
-      return action;
-    }
-
-    return resolveDisplayAction(action, lock);
-  };
-
   const getGrabbedLeanFrame = (tier: GrabbedLeanTier): string => {
     const category = LEAN_TIER_TO_CATEGORY[tier];
     const data = categoryData.get(category);
@@ -418,7 +465,8 @@ async function buildImportedRegistry(
     spriteHeight: height,
     getAnimation,
     getSpriteAnchor: (action) => importedSpriteAnchor(action, width, height),
-    resolveDisplayAction: resolveImportedDisplayAction,
+    resolveDisplayAction,
+    animateGrabbed: false,
     getGrabbedLeanFrame,
     pickFloorSitAction,
     canFloorCrawl: hasCategoryFrames("floorCrawl"),
@@ -426,8 +474,197 @@ async function buildImportedRegistry(
   };
 }
 
+function flattenGraphAction(
+  actionName: string,
+  actions: Readonly<Record<string, ShimejiGraphAction>>,
+  seen: ReadonlySet<string> = new Set(),
+): ShimejiGraphPose[] {
+  const action = actions[actionName];
+  if (!action || seen.has(actionName)) {
+    return [];
+  }
+
+  if (action.poses.length > 0) {
+    return action.poses;
+  }
+
+  const nextSeen = new Set(seen);
+  nextSeen.add(actionName);
+  return action.references.flatMap((reference) =>
+    flattenGraphAction(reference.name, actions, nextSeen),
+  );
+}
+
+function dangleLoopActionName(
+  actionName: string,
+  actions: Readonly<Record<string, ShimejiGraphAction>>,
+): string {
+  const action = actions[actionName];
+  if (!action || action.poses.length > 0) {
+    return actionName;
+  }
+
+  const referencedActions = action.references
+    .map((reference) => actions[reference.name])
+    .filter((reference): reference is ShimejiGraphAction => reference !== undefined);
+  const loopingReference = referencedActions.find(
+    (reference) =>
+      reference.poses.length > 1 &&
+      reference.poses.every((pose) => pose.durationTicks < 100),
+  ) ?? referencedActions.find((reference) => reference.poses.length > 1);
+
+  return loopingReference?.name ?? actionName;
+}
+
+function averagePoseVelocity(
+  poses: readonly ShimejiGraphPose[],
+  fallback: { x: number; y: number },
+): { x: number; y: number } {
+  const moving = poses.filter(
+    (pose) => pose.velocity.x !== 0 || pose.velocity.y !== 0,
+  );
+  if (moving.length === 0) {
+    return fallback;
+  }
+
+  return {
+    x: moving.reduce((total, pose) => total + pose.velocity.x, 0) / moving.length,
+    y: moving.reduce((total, pose) => total + pose.velocity.y, 0) / moving.length,
+  };
+}
+
+async function graphPoseFrames(
+  characterId: string,
+  poses: readonly ShimejiGraphPose[],
+): Promise<string[]> {
+  const dir = await characterDirPath(characterId);
+  const frames: string[] = [];
+
+  for (const pose of poses) {
+    if (pose.src) {
+      frames.push(toAssetUrl(await joinPath(dir, pose.src)));
+    }
+  }
+
+  return frames;
+}
+
+async function buildShimejiGraphRegistry(
+  manifest: CharacterManifest,
+): Promise<AnimationRegistry> {
+  const graph = manifest.shimejiGraph;
+  if (!graph) {
+    return buildImportedRegistry(manifest);
+  }
+
+  const semanticActions = new Map<CompanionAction, RuntimeAnimation>();
+  const posesByAction = new Map<CompanionAction, ShimejiGraphPose[]>();
+  const fallbackVelocity = (action: CompanionAction) =>
+    actionVelocity(action, manifest.defaultSpeed);
+
+  const resolveActionName = (action: CompanionAction): string | undefined => {
+    const emoteIndex = EMOTE_ACTIONS.indexOf(action as CompanionMenuAnimationAction);
+    if (emoteIndex >= 0) {
+      return graph.menuActions[emoteIndex]?.actionName;
+    }
+
+    const intent = ACTION_TO_SHIMEJI_INTENT[action];
+    const actionName = intent ? graph.defaultActions[intent] : undefined;
+    return action === "dangleOnBar" && actionName
+      ? dangleLoopActionName(actionName, graph.actions)
+      : actionName;
+  };
+
+  for (const action of Object.keys(ACTION_TO_CATEGORY) as CompanionAction[]) {
+    const actionName = resolveActionName(action);
+    const poses = actionName ? flattenGraphAction(actionName, graph.actions) : [];
+    posesByAction.set(action, poses);
+    const frames = await graphPoseFrames(manifest.id, poses);
+    semanticActions.set(action, {
+      frames: frames.length > 0 ? frames : [FALLBACK_FRAME],
+      tickDuration: 6,
+      frameTickDurations: poses.length > 0
+        ? poses.map((pose) => pose.durationTicks)
+        : undefined,
+      velocity: resolveActionVelocity(
+        action,
+        averagePoseVelocity(poses, fallbackVelocity(action)),
+        manifest.defaultSpeed,
+      ),
+    });
+  }
+
+  const hasFrames = (action: CompanionAction): boolean =>
+    (semanticActions.get(action)?.frames[0] ?? FALLBACK_FRAME) !== FALLBACK_FRAME;
+  const firstFrame = (action: CompanionAction): string | undefined => {
+    const animation = semanticActions.get(action);
+    return animation?.frames[0] === FALLBACK_FRAME ? undefined : animation?.frames[0];
+  };
+
+  const contextMenuActions = [
+    ...FLOOR_SIT_ACTIONS.filter((action) => hasFrames(action)),
+    ...EMOTE_ACTIONS.slice(0, graph.menuActions.length).filter((action) =>
+      hasFrames(action as CompanionAction),
+    ),
+  ];
+
+  return {
+    playbackStyle: "sequential",
+    spriteWidth: graph.spriteCanvas.width,
+    spriteHeight: graph.spriteCanvas.height,
+    getAnimation: (action) =>
+      semanticActions.get(action) ??
+      semanticActions.get("idle") ?? {
+        frames: [FALLBACK_FRAME],
+        tickDuration: 6,
+        velocity: { x: 0, y: 0 },
+      },
+    getSpriteAnchor: (action) => graphSpriteAnchor(action, graph.spriteCanvas),
+    resolveDisplayAction,
+    animateGrabbed: false,
+    getGrabbedLeanFrame: (tier) => {
+      const frames = semanticActions.get("grabbed")?.frames ?? [];
+      const usableFrames =
+        frames.length > 0 && frames[0] !== FALLBACK_FRAME ? frames : [];
+
+      if (usableFrames.length === 1) {
+        return usableFrames[0];
+      }
+
+      if (usableFrames.length > 1) {
+        const index = Math.min(
+          usableFrames.length - 1,
+          Math.max(
+            0,
+            Math.round(
+              (usableFrames.length - 1) * LEAN_TIER_FRAME_RATIO[tier],
+            ),
+          ),
+        );
+        return usableFrames[index];
+      }
+
+      return firstFrame("resist") ?? firstFrame("idle") ?? FALLBACK_FRAME;
+    },
+    pickFloorSitAction: (allowedActions = FLOOR_SIT_ACTIONS) => {
+      const available = FLOOR_SIT_ACTIONS.filter(
+        (action) => allowedActions.includes(action) && hasFrames(action),
+      );
+      return available.length > 0
+        ? available[Math.floor(Math.random() * available.length)]
+        : null;
+    },
+    canFloorCrawl: hasFrames("floorCrawl"),
+    contextMenuActions,
+  };
+}
+
 export async function buildAnimationRegistry(
   entry: CharacterLibraryEntry,
 ): Promise<AnimationRegistry> {
+  if (entry.manifest.animationSystem === "shimejiGraph") {
+    return buildShimejiGraphRegistry(entry.manifest);
+  }
+
   return buildImportedRegistry(entry.manifest);
 }

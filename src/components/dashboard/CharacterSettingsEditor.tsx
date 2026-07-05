@@ -50,8 +50,18 @@ const RANDOM_SIT_OPTIONS: readonly {
   },
   {
     action: "sitAlt2",
-    label: "Alt 2",
-    description: "third sit slot",
+    label: "Lie down",
+    description: "lie down / sprawl slot",
+  },
+  {
+    action: "sitOnBar",
+    label: "Bar sit",
+    description: "perched sit slot",
+  },
+  {
+    action: "dangleOnBar",
+    label: "Dangle",
+    description: "dangling sit slot",
   },
 ];
 
@@ -301,7 +311,20 @@ export function CharacterSettingsEditor({
 
       const manifest = entry?.manifest;
       const available = RANDOM_SIT_ACTIONS.filter(
-        (action) => (manifest?.animations[action]?.frames.length ?? 0) > 0,
+        (action) => {
+          if (!manifest) {
+            return false;
+          }
+
+          if (manifest.animationSystem === "shimejiGraph") {
+            const actionName = manifest.shimejiGraph?.defaultActions[action];
+            return actionName
+              ? manifest.shimejiGraph?.actions[actionName] !== undefined
+              : false;
+          }
+
+          return (manifest.animations[action]?.frames.length ?? 0) > 0;
+        },
       );
       setAvailableRandomSitActions(available);
       setHasFloorCrawl(

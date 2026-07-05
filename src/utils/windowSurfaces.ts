@@ -2,7 +2,7 @@ import {
   SPRITE_ANCHOR,
   SPRITE_HEIGHT,
   TITLE_BAR_SIT_Y_OFFSET,
-} from "../animations/beyondBirthday";
+} from "../animations/companionGeometry";
 import type {
   MonitorWorkArea,
   SurfaceLock,
@@ -17,6 +17,7 @@ import { isScreenEdgeHwnd, SCREEN_EDGE_WALL_INSET } from "./screenEdgeWalls";
 
 const HORIZONTAL_PADDING = SPRITE_ANCHOR.x;
 const WALL_VERTICAL_PADDING = SPRITE_HEIGHT;
+const UNDERSIDE_ANCHOR_Y_OFFSET = 5;
 
 export const LOCKED_SURFACE_MOVE_THRESHOLD = 4;
 
@@ -196,7 +197,7 @@ export function getUndersideHorizontalRange(surface: WindowSurface): {
 }
 
 export function getUndersideAnchorY(surface: WindowSurface): number {
-  return surface.bottom;
+  return surface.bottom - UNDERSIDE_ANCHOR_Y_OFFSET;
 }
 
 export function clampUndersideAnchorX(

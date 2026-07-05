@@ -1,11 +1,13 @@
-- image sometimes gets stretched
+- (GOOD ENOUGH FIX) sit animations are wrong when on top a window, need to find a rework
 
-when importing it automatically turns off, but the logic says its off
+- (GOOD ENOUGH) dangling logic isnt there right now
 
-bad ui for editing autonomy
+- scale isnt working properly, when refreshing and changing the scale though the frame is huge still even with the small sprite
 
-too much crawling
+editing is a bit weird
 
-when importing shimeji, it grabs img folder name instead of parent folder name
+- (EDGE CASE) green is getting a really weird tall frame, probably due to one sprite being super tall
 
-emote names sometimes skip numbers
+- bad logic with gray bg,
+
+- offset on climbing walls still to far as well as when crawling on ceiling

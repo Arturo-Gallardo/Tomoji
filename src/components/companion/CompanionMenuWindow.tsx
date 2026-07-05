@@ -14,7 +14,9 @@ import type {
 const ANIMATION_LABELS: Record<CompanionMenuAnimationAction, string> = {
   sit: "Sit",
   sitAlt: "Sit (alt 1)",
-  sitAlt2: "Sit (alt 2)",
+  sitAlt2: "Lie down",
+  sitOnBar: "Sit on bar",
+  dangleOnBar: "Dangle",
   emote: "Emote 1",
   emote2: "Emote 2",
   emote3: "Emote 3",
@@ -154,15 +156,17 @@ export function CompanionMenuWindow() {
         </button>
       ))}
 
-      <button
-        type="button"
-        onClick={() => {
-          handleAction("turnAround");
-        }}
-        className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
-      >
-        Turn around
-      </button>
+      {!wallLocked && !undersideLocked ? (
+        <button
+          type="button"
+          onClick={() => {
+            handleAction("turnAround");
+          }}
+          className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+        >
+          Turn around
+        </button>
+      ) : null}
 
       {animationItems.length > 0 && (
         <div>

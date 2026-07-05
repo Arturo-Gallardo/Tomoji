@@ -11,12 +11,14 @@ export function SelectImgFolderStep({ controller }: SelectImgFolderStepProps) {
     <div className="space-y-8">
       <p className="max-w-xl text-sm leading-relaxed text-neutral-400">
         Pick a folder of image frames (PNG recommended; JPG, WebP, and BMP
-        also work. Shimeji folders usually keep them under
+        also work. Choose the character sprite folder inside
         <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">
           img
         </code>
-        ). Choose frames manually, then tune animation speed and details. Your
-        files stay on your machine — nothing is uploaded.
+        , or <code className="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">img</code>{" "}
+        itself when it directly contains shime*.png. Do not choose the outer
+        Shimeji app folder. Choose frames manually, then tune animation speed
+        and details. Your files stay on your machine — nothing is uploaded.
       </p>
 
       <button
@@ -25,7 +27,7 @@ export function SelectImgFolderStep({ controller }: SelectImgFolderStepProps) {
         onClick={() => void loadImgFolder()}
         className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
       >
-        {isLoadingFolder ? "Loading..." : "Choose frames folder"}
+        {isLoadingFolder ? "Loading..." : "Choose img sprite folder"}
       </button>
 
       {draft.imgDir ? (

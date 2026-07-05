@@ -9,7 +9,8 @@ import type {
   GrabbedLeanTier,
 } from "../animations/types";
 import type { CompanionMenuAnimationAction } from "../types/companionMenu";
-import { LANDING_THRESHOLD, resolveDisplayAction, usesTitleBarSitAnchor } from "../animations/beyondBirthday";
+import { LANDING_THRESHOLD } from "../animations/companionGeometry";
+import { usesTitleBarSitAnchor } from "../animations/beyondBirthday";
 import {
   type AnchorClampMode,
   type CompanionBehaviorState,
@@ -242,8 +243,8 @@ export function useCompanionBehavior({
   }, [behaviorState]);
 
   const displayAction = useMemo(
-    () => resolveDisplayAction(action, surfaceLock),
-    [action, surfaceLock],
+    () => registry.resolveDisplayAction(action, surfaceLock),
+    [action, registry, surfaceLock],
   );
 
   const wallSide = useMemo((): WindowWallSide | null => {
@@ -408,7 +409,9 @@ export function useCompanionBehavior({
       if (
         nextAction === "sit" ||
         nextAction === "sitAlt" ||
-        nextAction === "sitAlt2"
+        nextAction === "sitAlt2" ||
+        nextAction === "sitOnBar" ||
+        nextAction === "dangleOnBar"
       ) {
         startSitting("manual", nextAction);
         return;
@@ -788,6 +791,8 @@ export function useCompanionBehavior({
   const turnAround = useCallback(() => {
     const currentState = behaviorStateRef.current;
     if (
+      isWallLockedRef.current ||
+      isUndersideLockedRef.current ||
       currentState === "walking" ||
       currentState === "climbing" ||
       currentState === "dragging" ||

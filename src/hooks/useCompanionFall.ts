@@ -5,7 +5,7 @@ import {
   FALL_GRAVITY,
   LANDING_THRESHOLD,
   TICK_INTERVAL_MS,
-} from "../animations/beyondBirthday";
+} from "../animations/companionGeometry";
 import type { FallVelocity, ScreenPosition } from "../types/companion";
 
 interface UseCompanionFallOptions {

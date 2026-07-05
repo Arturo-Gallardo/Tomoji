@@ -2,6 +2,8 @@ export type CompanionMenuAnimationAction =
   | "sit"
   | "sitAlt"
   | "sitAlt2"
+  | "sitOnBar"
+  | "dangleOnBar"
   | "emote"
   | "emote2"
   | "emote3"

@@ -63,7 +63,7 @@ export const ANIMATION_CATEGORY_META: Record<
   },
   sitAlt2: {
     id: "sitAlt2",
-    label: "Sit — floor (alt 2)",
+    label: "Lie down",
     description:
       "Optional third floor sit pose. Same playback as primary sit — still hold or 1→2→… loop. Mixed in randomly with other floor sits.",
     group: "sit",

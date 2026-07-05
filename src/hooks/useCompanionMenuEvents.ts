@@ -40,6 +40,8 @@ function handleMenuAction(
     case "sit":
     case "sitAlt":
     case "sitAlt2":
+    case "sitOnBar":
+    case "dangleOnBar":
     case "emote":
     case "emote2":
     case "emote3":

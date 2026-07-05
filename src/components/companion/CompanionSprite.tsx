@@ -1,7 +1,7 @@
 import {
   SPRITE_HEIGHT,
   SPRITE_WIDTH,
-} from "../../animations/beyondBirthday";
+} from "../../animations/companionGeometry";
 import type {
   CompanionAction,
   FacingDirection,
@@ -90,7 +90,7 @@ export function CompanionSprite({
         draggable={false}
         onPointerDown={interactive ? onPointerDown : undefined}
         onContextMenu={interactive ? onContextMenu : undefined}
-        className="absolute bottom-0 left-1/2 max-h-full max-w-full touch-none select-none object-contain object-bottom"
+        className="absolute bottom-0 left-1/2 h-full w-full touch-none select-none object-contain object-bottom"
         style={{
           cursor: interactive ? (isDragging ? "grabbing" : "grab") : "default",
           transform: `translateX(-50%) scaleX(${flipScale})`,

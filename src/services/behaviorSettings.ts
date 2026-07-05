@@ -4,6 +4,8 @@ export const RANDOM_SIT_ACTIONS: readonly RandomSitAction[] = [
   "sit",
   "sitAlt",
   "sitAlt2",
+  "sitOnBar",
+  "dangleOnBar",
 ];
 
 export const DEFAULT_BEHAVIOR_SETTINGS: BehaviorSettings = {

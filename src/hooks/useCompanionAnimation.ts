@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { getFrameTickDuration, TICK_INTERVAL_MS } from "../animations/beyondBirthday";
+import {
+  getFrameTickDuration,
+  TICK_INTERVAL_MS,
+} from "../animations/companionGeometry";
 import type {
   AnimationDefinition,
   CompanionAction,
@@ -114,7 +117,10 @@ export function useCompanionAnimation({
   useEffect(() => {
     const currentAction = actionRef.current;
 
-    if (currentAction === "grabbed" || currentAction === "fall") {
+    if (
+      currentAction === "fall" ||
+      (currentAction === "grabbed" && !registryRef.current.animateGrabbed)
+    ) {
       return;
     }
 
@@ -195,7 +201,7 @@ export function useCompanionAnimation({
     };
   }, [action]);
 
-  if (action === "grabbed") {
+  if (action === "grabbed" && !registry.animateGrabbed) {
     return {
       frameSrc: registry.getGrabbedLeanFrame(grabbedLeanTier),
     };

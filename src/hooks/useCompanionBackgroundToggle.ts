@@ -1,5 +1,8 @@
 import { useCallback, useState } from "react";
-import { emitCompanionBackgroundMode } from "../services/companionBackground";
+import {
+  emitCompanionBackgroundMode,
+  getCompanionBackgroundMode,
+} from "../services/companionBackground";
 import type { CompanionBackgroundMode } from "../types/companionBackground";
 
 interface UseCompanionBackgroundToggleResult {
@@ -8,9 +11,11 @@ interface UseCompanionBackgroundToggleResult {
   cycleMode: () => void;
 }
 
-// debug-only dashboard toggle; not persisted and not exposed in settings
+// debug-only dashboard toggle; persisted globally so new companion windows match
 export function useCompanionBackgroundToggle(): UseCompanionBackgroundToggleResult {
-  const [mode, setMode] = useState<CompanionBackgroundMode>("transparent");
+  const [mode, setMode] = useState<CompanionBackgroundMode>(
+    getCompanionBackgroundMode,
+  );
 
   const cycleMode = useCallback(() => {
     const nextMode: CompanionBackgroundMode =

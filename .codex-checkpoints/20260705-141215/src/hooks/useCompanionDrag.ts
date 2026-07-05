@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   resolveGrabbedLeanTier,
+  TICK_INTERVAL_MS,
 } from "../animations/beyondBirthday";
-import { TICK_INTERVAL_MS } from "../animations/companionGeometry";
 import type { GrabbedLeanTier } from "../animations/types";
 import type {
   AnchorClampMode,

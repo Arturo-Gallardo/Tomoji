@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
-import { listenCompanionBackgroundMode } from "../services/companionBackground";
+import {
+  getCompanionBackgroundMode,
+  listenCompanionBackgroundMode,
+} from "../services/companionBackground";
 import type { CompanionBackgroundMode } from "../types/companionBackground";
 
 export function useCompanionBackgroundEvents(): CompanionBackgroundMode {
-  const [mode, setMode] = useState<CompanionBackgroundMode>("transparent");
+  const [mode, setMode] = useState<CompanionBackgroundMode>(
+    getCompanionBackgroundMode,
+  );
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;

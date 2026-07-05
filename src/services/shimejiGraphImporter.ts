@@ -1,0 +1,1047 @@
+import type { CharacterManifest } from "../types/character";
+import {
+  DEFAULT_BEHAVIOR_SETTINGS,
+  normalizeBehaviorSettings,
+} from "./behaviorSettings";
+import {
+  addCharacter,
+  allocateNewTomojiFolderName,
+} from "./characterLibrary";
+import {
+  characterDirPath,
+  characterManifestPath,
+  characterSpritesDirPath,
+  characterSourcesDirPath,
+} from "./fs/appPaths";
+import {
+  copyFile,
+  ensureDir,
+  getBasename,
+  getDirname,
+  joinPath,
+  listDirectory,
+  pathExists,
+  pickDirectory,
+  pickFile,
+  readBinary,
+  readText,
+  writeBinary,
+  writeJson,
+} from "./fs/fileSystemAdapter";
+import type {
+  ShimejiActionIntent,
+  ShimejiAnimationGraph,
+  ShimejiGraphAction,
+  ShimejiGraphBehavior,
+  ShimejiGraphPose,
+  ShimejiImportReport,
+  ShimejiMenuAction,
+  ShimejiPoint,
+} from "../types/shimejiGraph";
+
+const DEFAULT_FRAME_SIZE = 128;
+const SUPPORTED_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "bmp"]);
+
+const ACTION_FILE_NAMES = ["actions.xml", "動作.xml"] as const;
+const BEHAVIOR_FILE_NAMES = ["behaviors.xml", "行動.xml"] as const;
+
+const ACTION_INTENT_CANDIDATES: Record<ShimejiActionIntent, readonly string[]> = {
+  idle: ["Stand", "立つ"],
+  walk: ["Walk", "歩く", "Run", "走る"],
+  floorCrawl: ["Creep", "ずりずり"],
+  sit: ["Sit", "座る"],
+  sitAlt: ["SitAndLookUp", "座って見上げる", "SitAndLookAtMouse", "座ってマウスを見上げる"],
+  sitAlt2: ["Sprawl", "寝そべる", "LieDown", "寝そべってボーっとする"],
+  sitOnBar: ["SitWithLegsUp", "楽に座る", "SitWithLegsDown", "足を下ろして座る"],
+  dangleOnBar: ["SitAndDangleLegs", "足をぶらぶらさせる", "SitWhileDanglingLegs", "座って足をぶらぶらさせる"],
+  fall: ["Fall", "落下する", "Falling", "落ちる", "FallWithIe", "IEを持って落ちる"],
+  bounce: ["Bouncing", "跳ねる"],
+  dragged: ["Dragged", "ドラッグされる", "Pinched", "つままれる"],
+  dragResist: ["Resisting", "抵抗する", "Pinched", "つままれる"],
+  grabWall: ["HoldOntoWall", "壁に掴まってボーっとする", "GrabWall", "壁に掴まる"],
+  climbWall: ["ClimbWall", "壁を登る", "ClimbAlongWall", "ワークエリアの壁を登る"],
+  grabCeiling: ["HoldOntoCeiling", "天井に掴まってボーっとする", "GrabCeiling", "天井に掴まる"],
+  climbCeiling: ["ClimbCeiling", "天井を伝う", "ClimbAlongCeiling", "ワークエリアの上辺を伝う"],
+};
+
+interface SourceFrame {
+  name: string;
+  path: string;
+}
+
+interface ShimejiPackage {
+  rootDir: string;
+  spriteDir: string;
+  actionsXmlPath: string | null;
+  behaviorsXmlPath: string | null;
+  sources: SourceFrame[];
+}
+
+export interface ShimejiGraphDraft {
+  name: string;
+  shimeji: ShimejiPackage;
+  graph: ShimejiAnimationGraph;
+  scale: number;
+  speed: number;
+}
+
+export interface ShimejiGraphImportScan {
+  status: "ready" | "missingFrames" | "missingActions";
+  spriteDir: string | null;
+  frameCount: number;
+  actionsXmlPath: string | null;
+  behaviorsXmlPath: string | null;
+  messages: string[];
+}
+
+interface ParsedPose {
+  image: string;
+  sourcePath: string;
+  durationTicks: number;
+  velocity: { x: number; y: number };
+  imageAnchor: ShimejiPoint;
+}
+
+interface ParsedAction {
+  name: string;
+  type: string | null;
+  borderType: string | null;
+  condition: string | null;
+  poses: ParsedPose[];
+  references: string[];
+}
+
+export async function pickShimejiGraphFolder(): Promise<string | null> {
+  return pickDirectory("Select the Shimeji folder or img sprite folder");
+}
+
+export async function pickShimejiGraphActionsFile(): Promise<string | null> {
+  return pickFile("Select actions.xml or 動作.xml", [
+    { name: "Shimeji actions XML", extensions: ["xml"] },
+  ]);
+}
+
+export async function pickShimejiGraphBehaviorsFile(): Promise<string | null> {
+  return pickFile("Select behaviors.xml or 行動.xml", [
+    { name: "Shimeji behaviors XML", extensions: ["xml"] },
+  ]);
+}
+
+function isSupportedImageFile(name: string): boolean {
+  const extension = name.match(/\.([^./\\]+)$/)?.[1]?.toLowerCase();
+  return extension !== undefined && SUPPORTED_IMAGE_EXTENSIONS.has(extension);
+}
+
+function isShimejiFrameName(name: string): boolean {
+  return /^shime\d+[a-z]*\.[^.]+$/i.test(name) && isSupportedImageFile(name);
+}
+
+async function safePathExists(path: string): Promise<boolean> {
+  try {
+    return await pathExists(path);
+  } catch {
+    return false;
+  }
+}
+
+async function safeDirname(path: string): Promise<string | null> {
+  try {
+    return await getDirname(path);
+  } catch {
+    return null;
+  }
+}
+
+async function listDirsRecursive(dir: string): Promise<string[]> {
+  if (!(await safePathExists(dir))) {
+    return [];
+  }
+
+  const dirs = [dir];
+  async function walk(currentDir: string): Promise<void> {
+    for (const entry of await listDirectory(currentDir)) {
+      if (entry.isDirectory) {
+        dirs.push(entry.path);
+        await walk(entry.path);
+      }
+    }
+  }
+
+  await walk(dir);
+  return dirs;
+}
+
+async function listImageFramesRecursive(dir: string): Promise<SourceFrame[]> {
+  if (!(await safePathExists(dir))) {
+    return [];
+  }
+
+  const sources: SourceFrame[] = [];
+  async function walk(currentDir: string): Promise<void> {
+    for (const entry of await listDirectory(currentDir)) {
+      if (entry.isDirectory) {
+        await walk(entry.path);
+        continue;
+      }
+
+      if (entry.isFile && isSupportedImageFile(entry.name)) {
+        sources.push({ name: entry.name, path: entry.path });
+      }
+    }
+  }
+
+  await walk(dir);
+  return sources.sort((a, b) =>
+    a.path.localeCompare(b.path, undefined, { numeric: true }),
+  );
+}
+
+async function findBestSpriteDir(rootDir: string): Promise<string> {
+  let bestDir = rootDir;
+  let bestScore = -1;
+
+  for (const dir of await listDirsRecursive(rootDir)) {
+    const score = (await listDirectory(dir)).filter(
+      (entry) => entry.isFile && isShimejiFrameName(entry.name),
+    ).length;
+
+    if (score > bestScore) {
+      bestDir = dir;
+      bestScore = score;
+    }
+  }
+
+  return bestDir;
+}
+
+async function firstExistingFile(dir: string, names: readonly string[]): Promise<string | null> {
+  for (const name of names) {
+    const path = await joinPath(dir, name);
+    if (await safePathExists(path)) {
+      return path;
+    }
+  }
+
+  return null;
+}
+
+async function findConfigRoot(inputDir: string, spriteDir: string): Promise<string | null> {
+  for (const dir of await listDirsRecursive(inputDir)) {
+    const confDir = await joinPath(dir, "conf");
+    if (await firstExistingFile(confDir, ACTION_FILE_NAMES)) {
+      return dir;
+    }
+  }
+
+  let currentDir = spriteDir;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const confDir = await joinPath(currentDir, "conf");
+    if (await firstExistingFile(confDir, ACTION_FILE_NAMES)) {
+      return currentDir;
+    }
+
+    const parent = await safeDirname(currentDir);
+    if (parent === null || parent === currentDir) {
+      return null;
+    }
+    currentDir = parent;
+  }
+
+  return null;
+}
+
+async function configRootFromXmlFile(path: string): Promise<string> {
+  const confDir = await safeDirname(path);
+  if (confDir === null || (await getBasename(confDir)).toLowerCase() !== "conf") {
+    throw new Error("Choose a Shimeji XML file inside the conf folder.");
+  }
+
+  const root = await safeDirname(confDir);
+  if (root === null) {
+    throw new Error("Choose a Shimeji XML file inside the conf folder.");
+  }
+
+  return root;
+}
+
+async function findShimejiPackage(
+  inputDir: string,
+  actionsXmlPath?: string | null,
+  behaviorsXmlPath?: string | null,
+): Promise<ShimejiPackage | null> {
+  const spriteDir = await findBestSpriteDir(inputDir);
+  const sources = await listImageFramesRecursive(spriteDir);
+  if (!sources.some((source) => isShimejiFrameName(source.name))) {
+    return null;
+  }
+
+  const explicitRoot = actionsXmlPath
+    ? await configRootFromXmlFile(actionsXmlPath)
+    : behaviorsXmlPath
+      ? await configRootFromXmlFile(behaviorsXmlPath)
+      : null;
+  const rootDir = explicitRoot ?? (await findConfigRoot(inputDir, spriteDir)) ?? inputDir;
+  const confDir = await joinPath(rootDir, "conf");
+
+  return {
+    rootDir,
+    spriteDir,
+    actionsXmlPath: actionsXmlPath ?? (await firstExistingFile(confDir, ACTION_FILE_NAMES)),
+    behaviorsXmlPath:
+      behaviorsXmlPath ?? (await firstExistingFile(confDir, BEHAVIOR_FILE_NAMES)),
+    sources,
+  };
+}
+
+export async function analyzeShimejiGraphImportSelection(
+  inputDir: string,
+  actionsXmlPath?: string | null,
+  behaviorsXmlPath?: string | null,
+): Promise<ShimejiGraphImportScan> {
+  const shimeji = await findShimejiPackage(inputDir, actionsXmlPath, behaviorsXmlPath);
+  const messages: string[] = [];
+
+  if (shimeji === null) {
+    return {
+      status: "missingFrames",
+      spriteDir: null,
+      frameCount: 0,
+      actionsXmlPath: null,
+      behaviorsXmlPath: null,
+      messages: ["No shime*.png frames found. Choose the character img folder or full Shimeji folder."],
+    };
+  }
+
+  const frameCount = shimeji.sources.filter((source) =>
+    isShimejiFrameName(source.name),
+  ).length;
+  messages.push(`Found ${frameCount} Shimeji frames in ${shimeji.spriteDir}.`);
+
+  if (shimeji.actionsXmlPath) {
+    messages.push(`Found actions XML at ${shimeji.actionsXmlPath}.`);
+  } else {
+    messages.push("No actions.xml/動作.xml found. Graph import needs this file.");
+  }
+
+  if (shimeji.behaviorsXmlPath) {
+    messages.push(`Found behaviors XML at ${shimeji.behaviorsXmlPath}.`);
+  } else {
+    messages.push("No behaviors.xml/行動.xml found. Import can continue with action playback only.");
+  }
+
+  return {
+    status: shimeji.actionsXmlPath ? "ready" : "missingActions",
+    spriteDir: shimeji.spriteDir,
+    frameCount,
+    actionsXmlPath: shimeji.actionsXmlPath,
+    behaviorsXmlPath: shimeji.behaviorsXmlPath,
+    messages,
+  };
+}
+
+function elementsByNames(parent: ParentNode, names: readonly string[]): Element[] {
+  return Array.from(parent.querySelectorAll("*")).filter((element) =>
+    names.includes(element.localName),
+  );
+}
+
+function childElementsByNames(parent: Element, names: readonly string[]): Element[] {
+  return Array.from(parent.children).filter((element) =>
+    names.includes(element.localName),
+  );
+}
+
+function attr(element: Element, names: readonly string[]): string | null {
+  for (const name of names) {
+    const value = element.getAttribute(name);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function parsePoint(raw: string | null, fallback: ShimejiPoint): ShimejiPoint {
+  if (raw === null) {
+    return fallback;
+  }
+
+  const [x, y] = raw.split(",").map((part) => Number(part.trim()));
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : fallback;
+}
+
+function parseDurationTicks(raw: string | null): number {
+  const parsed = raw === null ? Number.NaN : Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 6;
+}
+
+function parseFrequency(raw: string | null): number {
+  const parsed = raw === null ? Number.NaN : Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sourceByBasename(sources: readonly SourceFrame[]): ReadonlyMap<string, SourceFrame> {
+  const map = new Map<string, SourceFrame>();
+  for (const source of sources) {
+    map.set(source.name.toLowerCase(), source);
+  }
+  return map;
+}
+
+async function imagePathFromPose(
+  shimeji: ShimejiPackage,
+  image: string,
+  sourceByName: ReadonlyMap<string, SourceFrame>,
+): Promise<string | null> {
+  const parts = image.replace(/\\/g, "/").split("/").filter(Boolean);
+  const candidates = [
+    await joinPath(shimeji.spriteDir, ...parts),
+    await joinPath(shimeji.rootDir, ...parts),
+  ];
+
+  for (const candidate of candidates) {
+    if (await safePathExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  const basename = parts[parts.length - 1];
+  return basename ? sourceByName.get(basename.toLowerCase())?.path ?? null : null;
+}
+
+async function parseActions(
+  shimeji: ShimejiPackage,
+  report: ShimejiImportReport,
+): Promise<Map<string, ParsedAction>> {
+  if (shimeji.actionsXmlPath === null) {
+    throw new Error("actions.xml/動作.xml is required for Shimeji graph import.");
+  }
+
+  const document = new DOMParser().parseFromString(
+    await readText(shimeji.actionsXmlPath),
+    "application/xml",
+  );
+  if (elementsByNames(document, ["parsererror"]).length > 0) {
+    throw new Error("Shimeji actions XML is not valid XML.");
+  }
+
+  const sourceByName = sourceByBasename(shimeji.sources);
+  const actions = new Map<string, ParsedAction>();
+
+  for (const node of elementsByNames(document, ["Action", "動作"])) {
+    const name = attr(node, ["Name", "名前"]);
+    if (!name) {
+      continue;
+    }
+
+    const poses: ParsedPose[] = [];
+    for (const poseNode of elementsByNames(node, ["Pose", "ポーズ"])) {
+      const image = attr(poseNode, ["Image", "画像"]);
+      if (!image) {
+        continue;
+      }
+
+      const sourcePath = await imagePathFromPose(shimeji, image, sourceByName);
+      if (sourcePath === null) {
+        report.missingImages.push(image);
+        continue;
+      }
+
+      poses.push({
+        image,
+        sourcePath,
+        durationTicks: parseDurationTicks(attr(poseNode, ["Duration", "長さ"])),
+        velocity: parsePoint(attr(poseNode, ["Velocity", "移動速度"]), { x: 0, y: 0 }),
+        imageAnchor: parsePoint(attr(poseNode, ["ImageAnchor", "基準座標"]), {
+          x: DEFAULT_FRAME_SIZE / 2,
+          y: DEFAULT_FRAME_SIZE,
+        }),
+      });
+    }
+
+    actions.set(name, {
+      name,
+      type: attr(node, ["Type", "種類"]),
+      borderType: attr(node, ["BorderType", "枠"]),
+      condition: attr(node, ["Condition", "条件"]),
+      poses,
+      references: childElementsByNames(node, ["ActionReference", "動作参照"])
+        .map((refNode) => attr(refNode, ["Name", "名前"]))
+        .filter((refName): refName is string => refName !== null),
+    });
+  }
+
+  report.actionsParsed = actions.size;
+  report.posesParsed = Array.from(actions.values()).reduce(
+    (total, action) => total + action.poses.length,
+    0,
+  );
+
+  return actions;
+}
+
+async function parseBehaviors(
+  shimeji: ShimejiPackage,
+  report: ShimejiImportReport,
+): Promise<Record<string, ShimejiGraphBehavior>> {
+  if (shimeji.behaviorsXmlPath === null) {
+    return {};
+  }
+
+  const document = new DOMParser().parseFromString(
+    await readText(shimeji.behaviorsXmlPath),
+    "application/xml",
+  );
+  if (elementsByNames(document, ["parsererror"]).length > 0) {
+    throw new Error("Shimeji behaviors XML is not valid XML.");
+  }
+
+  const behaviors: Record<string, ShimejiGraphBehavior> = {};
+  for (const node of elementsByNames(document, ["Behavior", "行動"])) {
+    const name = attr(node, ["Name", "名前"]);
+    if (!name) {
+      continue;
+    }
+
+    behaviors[name] = {
+      name,
+      hidden: attr(node, ["Hidden", "隠す"]) === "true",
+      frequency: parseFrequency(attr(node, ["Frequency", "頻度"])),
+      condition: attr(node, ["Condition", "条件"]),
+      nextBehaviors: elementsByNames(node, ["BehaviorReference", "行動参照"]).map(
+        (refNode) => ({
+          name: attr(refNode, ["Name", "名前"]) ?? "",
+          frequency: parseFrequency(attr(refNode, ["Frequency", "頻度"])),
+          condition: attr(refNode, ["Condition", "条件"]),
+        }),
+      ).filter((ref) => ref.name.length > 0),
+    };
+  }
+
+  report.behaviorsParsed = Object.keys(behaviors).length;
+  return behaviors;
+}
+
+function actionExists(
+  actions: ReadonlyMap<string, ParsedAction>,
+  name: string,
+): boolean {
+  const action = actions.get(name);
+  return action !== undefined && (action.poses.length > 0 || action.references.length > 0);
+}
+
+function defaultActionMatchesIntent(
+  intent: ShimejiActionIntent,
+  actionName: string,
+  actions: ReadonlyMap<string, ParsedAction>,
+): boolean {
+  if (!actionExists(actions, actionName)) {
+    return false;
+  }
+
+  // some packs use the standard dangle action name for a long custom emote.
+  // real leg-dangle loops are normally short; skip obvious emote-length loops.
+  if (intent === "dangleOnBar") {
+    return flattenAction(actionName, actions).length <= 12;
+  }
+
+  return true;
+}
+
+function buildDefaultActions(
+  actions: ReadonlyMap<string, ParsedAction>,
+): Partial<Record<ShimejiActionIntent, string>> {
+  const defaults: Partial<Record<ShimejiActionIntent, string>> = {};
+
+  for (const [intent, candidates] of Object.entries(ACTION_INTENT_CANDIDATES) as [
+    ShimejiActionIntent,
+    readonly string[],
+  ][]) {
+    const match = candidates.find((name) =>
+      defaultActionMatchesIntent(intent, name, actions),
+    );
+    if (match) {
+      defaults[intent] = match;
+    }
+  }
+
+  return defaults;
+}
+
+function actionSignature(action: ParsedAction): string {
+  return action.poses.map((pose) => pose.sourcePath).join("|");
+}
+
+function referencedActionNames(
+  action: ParsedAction,
+  actions: ReadonlyMap<string, ParsedAction>,
+  seen: ReadonlySet<string> = new Set(),
+): string[] {
+  if (seen.has(action.name)) {
+    return [];
+  }
+
+  const nextSeen = new Set(seen);
+  nextSeen.add(action.name);
+
+  return [
+    action.name,
+    ...action.references.flatMap((reference) => {
+      const referenced = actions.get(reference);
+      return referenced
+        ? referencedActionNames(referenced, actions, nextSeen)
+        : [reference];
+    }),
+  ];
+}
+
+function buildMenuActions(
+  actions: ReadonlyMap<string, ParsedAction>,
+  defaults: Partial<Record<ShimejiActionIntent, string>>,
+): ShimejiMenuAction[] {
+  const safeExpression =
+    /face|look|spin|dance|wave|laugh|smile|emote|head|blink|wink|happy|sad|angry|surprise|mouse|顔|見る|見上げ|首|回|笑|踊|手|マウス/i;
+  const blocked =
+    /walk|run|dash|climb|crawl|creep|fall|fallen|jump|throw|pull|divide|split|drag|pinch|resist|grab|hold|standup|stand up|get up|getting up|trip|tripping|bounce|landing|land|wall|ceiling|ie|壁|天井|落|投|分裂|引っこ|走|歩|登|掴|ドラッグ|抵抗|ジャンプ|転ぶ|跳ね|立ち上|起き/i;
+  const usedSignatures = new Set<string>();
+  const defaultsToSkip = new Set(Object.values(defaults).filter(Boolean));
+  const menu: ShimejiMenuAction[] = [];
+
+  for (const action of actions.values()) {
+    if (
+      menu.length >= 6 ||
+      defaultsToSkip.has(action.name) ||
+      referencedActionNames(action, actions).some((name) => blocked.test(name)) ||
+      !safeExpression.test(action.name)
+    ) {
+      continue;
+    }
+
+    const flattened = action.poses.length > 0 ? action : null;
+    if (flattened === null || flattened.poses.length <= 1) {
+      continue;
+    }
+
+    const signature = actionSignature(flattened);
+    if (usedSignatures.has(signature)) {
+      continue;
+    }
+
+    usedSignatures.add(signature);
+    menu.push({ actionName: action.name, label: action.name });
+  }
+
+  return menu;
+}
+
+function safeFilename(input: string): string {
+  const cleaned = input.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").trim();
+  return cleaned.length > 0 ? cleaned : crypto.randomUUID();
+}
+
+function imageMimeType(pathOrName: string): string {
+  const extension = pathOrName.match(/\.([^./\\]+)$/)?.[1]?.toLowerCase();
+  return extension === "jpg" || extension === "jpeg"
+    ? "image/jpeg"
+    : extension
+      ? `image/${extension}`
+      : "image/png";
+}
+
+async function loadImageBitmap(sourcePath: string): Promise<ImageBitmap> {
+  const bytes = await readBinary(sourcePath);
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  );
+  return createImageBitmap(new Blob([buffer], { type: imageMimeType(sourcePath) }));
+}
+
+function canvasToPngBytes(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("failed to encode sprite frame"));
+        return;
+      }
+
+      blob.arrayBuffer()
+        .then((buffer) => resolve(new Uint8Array(buffer)))
+        .catch(reject);
+    }, "image/png");
+  });
+}
+
+async function buildCanvasMetrics(
+  poses: readonly ParsedPose[],
+): Promise<{
+  width: number;
+  height: number;
+  anchor: ShimejiPoint;
+}> {
+  let width = DEFAULT_FRAME_SIZE;
+  let height = DEFAULT_FRAME_SIZE;
+  const bitmaps = new Map<string, { width: number; height: number }>();
+
+  for (const pose of poses) {
+    if (!bitmaps.has(pose.sourcePath)) {
+      const bitmap = await loadImageBitmap(pose.sourcePath);
+      try {
+        const bounds = bitmapContentBounds(bitmap);
+        bitmaps.set(pose.sourcePath, {
+          width: bounds.width,
+          height: bounds.height,
+        });
+      } finally {
+        bitmap.close();
+      }
+    }
+
+    const size = bitmaps.get(pose.sourcePath);
+    if (!size) {
+      continue;
+    }
+
+    width = Math.max(width, size.width);
+    height = Math.max(height, size.height);
+  }
+
+  return {
+    width: Math.ceil(width),
+    height: Math.ceil(height),
+    anchor: {
+      x: Math.ceil(width / 2),
+      y: Math.ceil(height),
+    },
+  };
+}
+
+function bitmapContentBounds(bitmap: ImageBitmap): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    return { x: 0, y: 0, width: bitmap.width, height: bitmap.height };
+  }
+
+  context.drawImage(bitmap, 0, 0);
+  const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+  let minX = bitmap.width;
+  let minY = bitmap.height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < bitmap.height; y += 1) {
+    for (let x = 0; x < bitmap.width; x += 1) {
+      if (data[(y * bitmap.width + x) * 4 + 3] === 0) {
+        continue;
+      }
+
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (maxX < minX || maxY < minY) {
+    return { x: 0, y: 0, width: bitmap.width, height: bitmap.height };
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
+
+async function writeNormalizedFrame(
+  sourcePath: string,
+  destPath: string,
+  imageAnchor: ShimejiPoint,
+  canvasAnchor: ShimejiPoint,
+  width: number,
+  height: number,
+): Promise<void> {
+  const bitmap = await loadImageBitmap(sourcePath);
+  try {
+    const bounds = bitmapContentBounds(bitmap);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("2d canvas context unavailable");
+    }
+
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, width, height);
+    const adjustedAnchor = {
+      x: imageAnchor.x - bounds.x,
+      y: imageAnchor.y - bounds.y,
+    };
+    const x = Math.min(
+      Math.max(0, Math.round(canvasAnchor.x - adjustedAnchor.x)),
+      Math.max(0, width - bounds.width),
+    );
+    const y = Math.min(
+      Math.max(0, Math.round(canvasAnchor.y - adjustedAnchor.y)),
+      Math.max(0, height - bounds.height),
+    );
+    context.drawImage(
+      bitmap,
+      bounds.x,
+      bounds.y,
+      bounds.width,
+      bounds.height,
+      x,
+      y,
+      bounds.width,
+      bounds.height,
+    );
+    await writeBinary(destPath, await canvasToPngBytes(canvas));
+  } finally {
+    bitmap.close();
+  }
+}
+
+async function defaultShimejiName(shimeji: ShimejiPackage): Promise<string> {
+  const spriteName = await getBasename(shimeji.spriteDir);
+  if (spriteName.toLowerCase() !== "img" && spriteName.toLowerCase() !== "shimeji") {
+    return spriteName;
+  }
+
+  const parentDir = await safeDirname(shimeji.spriteDir);
+  return parentDir ? getBasename(parentDir) : spriteName;
+}
+
+function averageWalkSpeed(actions: ReadonlyMap<string, ParsedAction>): number {
+  const walk = actions.get("Walk") ?? actions.get("歩く");
+  const velocities = (walk?.poses ?? [])
+    .map((pose) => Math.abs(pose.velocity.x))
+    .filter((velocity) => velocity > 0);
+
+  if (velocities.length === 0) {
+    return 2;
+  }
+
+  return velocities.reduce((total, velocity) => total + velocity, 0) / velocities.length;
+}
+
+function flattenAction(
+  name: string,
+  actions: ReadonlyMap<string, ParsedAction>,
+  seen: ReadonlySet<string> = new Set(),
+): ParsedPose[] {
+  const action = actions.get(name);
+  if (!action || seen.has(name)) {
+    return [];
+  }
+
+  if (action.poses.length > 0) {
+    return action.poses;
+  }
+
+  const nextSeen = new Set(seen);
+  nextSeen.add(name);
+  return action.references.flatMap((reference) =>
+    flattenAction(reference, actions, nextSeen),
+  );
+}
+
+export async function buildShimejiGraphDraftFromFolder(
+  inputDir: string,
+  actionsXmlPath?: string | null,
+  behaviorsXmlPath?: string | null,
+): Promise<ShimejiGraphDraft> {
+  const shimeji = await findShimejiPackage(inputDir, actionsXmlPath, behaviorsXmlPath);
+  if (shimeji === null) {
+    throw new Error("No Shimeji frames found. Choose the full Shimeji folder or img character folder.");
+  }
+
+  const report: ShimejiImportReport = {
+    actionsParsed: 0,
+    behaviorsParsed: 0,
+    posesParsed: 0,
+    missingImages: [],
+    unsupportedActions: [],
+    issues: [],
+  };
+  const parsedActions = await parseActions(shimeji, report);
+  const behaviors = await parseBehaviors(shimeji, report);
+  const defaultActions = buildDefaultActions(parsedActions);
+  const menuActions = buildMenuActions(parsedActions, defaultActions);
+  const allUsedPoses = Array.from(new Set([
+    ...Object.values(defaultActions).filter((name): name is string => Boolean(name))
+      .flatMap((name) => flattenAction(name, parsedActions)),
+    ...menuActions.flatMap((item) => flattenAction(item.actionName, parsedActions)),
+  ]));
+  const canvas = await buildCanvasMetrics(
+    allUsedPoses.length > 0
+      ? allUsedPoses
+      : Array.from(parsedActions.values()).flatMap((action) => action.poses),
+  );
+
+  for (const action of parsedActions.values()) {
+    if (action.type === "Embedded" || action.type === "組み込み") {
+      report.unsupportedActions.push(action.name);
+    }
+  }
+
+  if (report.missingImages.length > 0) {
+    report.issues.push({
+      severity: "warning",
+      message: `${report.missingImages.length} pose image reference(s) could not be found.`,
+    });
+  }
+  if (report.unsupportedActions.length > 0) {
+    report.issues.push({
+      severity: "info",
+      message: `${report.unsupportedActions.length} embedded Shimeji action(s) imported as visual/no-op fallbacks.`,
+    });
+  }
+
+  const graphActions: Record<string, ShimejiGraphAction> = {};
+  for (const action of parsedActions.values()) {
+    graphActions[action.name] = {
+      name: action.name,
+      type: action.type,
+      borderType: action.borderType,
+      condition: action.condition,
+      poses: action.poses.map((pose): ShimejiGraphPose => ({
+        src: "",
+        source: pose.sourcePath,
+        durationTicks: pose.durationTicks,
+        velocity: pose.velocity,
+        imageAnchor: pose.imageAnchor,
+      })),
+      references: action.references.map((name) => ({ name })),
+    };
+  }
+
+  return {
+    name: await defaultShimejiName(shimeji),
+    shimeji,
+    graph: {
+      actions: graphActions,
+      behaviors,
+      defaultActions,
+      menuActions,
+      spriteCanvas: canvas,
+      importReport: report,
+    },
+    scale: 1,
+    speed: averageWalkSpeed(parsedActions),
+  };
+}
+
+async function writeGraphSprites(
+  characterId: string,
+  draft: ShimejiGraphDraft,
+): Promise<ShimejiAnimationGraph> {
+  const spritesDir = await characterSpritesDirPath(characterId);
+  const sourcesDir = await characterSourcesDirPath(characterId);
+  const shimejiSpriteDir = await joinPath(spritesDir, "shimeji");
+  await ensureDir(shimejiSpriteDir);
+  await ensureDir(sourcesDir);
+
+  const sourceToRuntime = new Map<string, string>();
+  const sourceToOriginal = new Map<string, string>();
+  const usedNames = new Set<string>();
+  const poses = Object.values(draft.graph.actions).flatMap((action) => action.poses);
+
+  for (let index = 0; index < poses.length; index += 1) {
+    const pose = poses[index];
+    if (!pose.source || sourceToRuntime.has(pose.source)) {
+      continue;
+    }
+
+    const basename = await getBasename(pose.source);
+    const safeBase = safeFilename(basename).replace(/\.[^.]+$/, "");
+    let filename = `${safeBase}.png`;
+    let suffix = 1;
+    while (usedNames.has(filename)) {
+      filename = `${safeBase}-${suffix}.png`;
+      suffix += 1;
+    }
+    usedNames.add(filename);
+
+    const runtimePath = await joinPath(shimejiSpriteDir, filename);
+    await writeNormalizedFrame(
+      pose.source,
+      runtimePath,
+      pose.imageAnchor,
+      draft.graph.spriteCanvas.anchor,
+      draft.graph.spriteCanvas.width,
+      draft.graph.spriteCanvas.height,
+    );
+    sourceToRuntime.set(pose.source, `sprites/shimeji/${filename}`);
+
+    const sourceDest = await joinPath(sourcesDir, basename);
+    await copyFile(pose.source, sourceDest);
+    sourceToOriginal.set(pose.source, basename);
+  }
+
+  const actions = Object.fromEntries(
+    Object.entries(draft.graph.actions).map(([name, action]) => [
+      name,
+      {
+        ...action,
+        poses: action.poses.map((pose) => ({
+          ...pose,
+          src: pose.source ? sourceToRuntime.get(pose.source) ?? pose.src : pose.src,
+          source: pose.source ? sourceToOriginal.get(pose.source) : undefined,
+        })),
+      },
+    ]),
+  );
+
+  return { ...draft.graph, actions };
+}
+
+export async function convertShimejiGraphDraft(
+  draft: ShimejiGraphDraft,
+  nameOverride?: string,
+): Promise<string> {
+  const name = (nameOverride ?? draft.name).trim() || "Imported Shimeji";
+  const id = await allocateNewTomojiFolderName(name);
+  const destDir = await characterDirPath(id);
+  await ensureDir(destDir);
+
+  const graph = await writeGraphSprites(id, draft);
+  const manifest: CharacterManifest = {
+    id,
+    name: id,
+    version: "2.0.0",
+    author: "Imported (Shimeji)",
+    defaultScale: draft.scale,
+    defaultSpeed: draft.speed,
+    frameWidth: graph.spriteCanvas.width,
+    frameHeight: graph.spriteCanvas.height,
+    animations: {},
+    animationSystem: "shimejiGraph",
+    shimejiGraph: graph,
+    behaviorSettings: normalizeBehaviorSettings({
+      ...DEFAULT_BEHAVIOR_SETTINGS,
+      dialogueFrequency: 0.2,
+    }),
+    dialogueSettings: {
+      lines: [],
+      frequency: 0.2,
+    },
+    playbackStyle: "sequential",
+    storageVersion: 2,
+  };
+
+  await writeJson(await characterManifestPath(id), manifest);
+  await addCharacter({ manifest, source: "shimeji", folderPath: destDir });
+  return id;
+}
