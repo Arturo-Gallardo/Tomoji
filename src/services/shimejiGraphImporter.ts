@@ -24,6 +24,7 @@ import {
   pickDirectory,
   pickFile,
   readBinary,
+  readJson,
   readText,
   writeBinary,
   writeJson,
@@ -40,10 +41,13 @@ import type {
 } from "../types/shimejiGraph";
 
 const DEFAULT_FRAME_SIZE = 128;
+const ANDROID_TARGET_VISIBLE_HEIGHT = 120;
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "bmp"]);
 
 const ACTION_FILE_NAMES = ["actions.xml", "動作.xml"] as const;
 const BEHAVIOR_FILE_NAMES = ["behaviors.xml", "行動.xml"] as const;
+
+export type ShimejiImportFormat = "pc" | "android";
 
 const ACTION_INTENT_CANDIDATES: Record<ShimejiActionIntent, readonly string[]> = {
   idle: ["Stand", "立つ"],
@@ -70,11 +74,13 @@ interface SourceFrame {
 }
 
 interface ShimejiPackage {
+  format: ShimejiImportFormat;
   rootDir: string;
   spriteDir: string;
   actionsXmlPath: string | null;
   behaviorsXmlPath: string | null;
   sources: SourceFrame[];
+  displayName?: string;
 }
 
 export interface ShimejiGraphDraft {
@@ -83,6 +89,7 @@ export interface ShimejiGraphDraft {
   graph: ShimejiAnimationGraph;
   scale: number;
   speed: number;
+  runtimeSpriteScale?: number;
 }
 
 export interface ShimejiGraphImportScan {
@@ -109,6 +116,39 @@ interface ParsedAction {
   condition: string | null;
   poses: ParsedPose[];
   references: string[];
+}
+
+interface AndroidManifest {
+  name?: string;
+  animationSchema?: {
+    path?: string;
+  };
+  sprites?: {
+    basePath?: string;
+    filePattern?: string;
+    spriteCount?: number;
+    size?: [number, number];
+  };
+}
+
+interface AndroidAnimationFrame {
+  sprite: number;
+  dx?: number;
+  dy?: number;
+  durationTicks?: number;
+}
+
+interface AndroidAnimation {
+  key: string;
+  type?: string;
+  subtype?: string;
+  loop?: string;
+  direction?: string;
+  frames: AndroidAnimationFrame[];
+}
+
+interface AndroidAnimationFile {
+  animations: AndroidAnimation[];
 }
 
 export async function pickShimejiGraphFolder(): Promise<string | null> {
@@ -264,11 +304,90 @@ async function configRootFromXmlFile(path: string): Promise<string> {
   return root;
 }
 
+async function firstExistingDir(dir: string, names: readonly string[]): Promise<string | null> {
+  for (const name of names) {
+    const path = await joinPath(dir, name);
+    if (await safePathExists(path)) {
+      return path;
+    }
+  }
+
+  return null;
+}
+
+async function findAndroidRoot(inputDir: string): Promise<string | null> {
+  const candidates = [inputDir];
+  const basename = (await getBasename(inputDir)).toLowerCase();
+  if (basename === "sprites") {
+    const parent = await safeDirname(inputDir);
+    if (parent) {
+      candidates.push(parent);
+    }
+  }
+
+  candidates.push(...(await listDirsRecursive(inputDir)));
+
+  for (const dir of candidates) {
+    const manifestPath = await joinPath(dir, "manifest.json");
+    const animationPath = await joinPath(dir, "animation.json");
+    const spritesDir = await joinPath(dir, "sprites");
+    if (
+      (await safePathExists(manifestPath)) &&
+      (await safePathExists(animationPath)) &&
+      (await safePathExists(spritesDir))
+    ) {
+      return dir;
+    }
+  }
+
+  return null;
+}
+
+async function findAndroidPackage(inputDir: string): Promise<ShimejiPackage | null> {
+  const rootDir = await findAndroidRoot(inputDir);
+  if (rootDir === null) {
+    return null;
+  }
+
+  const manifest = await readJson<AndroidManifest>(await joinPath(rootDir, "manifest.json"));
+  const defaultSpriteDir = await joinPath(rootDir, "sprites");
+  const spriteDir =
+    manifest.sprites?.basePath
+      ? await joinPath(rootDir, manifest.sprites.basePath)
+      : (await firstExistingDir(rootDir, ["sprites"])) ?? defaultSpriteDir;
+  const preferredAnimationPath = await joinPath(
+    rootDir,
+    manifest.animationSchema?.path ?? "animation.json",
+  );
+  const fallbackAnimationPath = await joinPath(rootDir, "animation.json");
+  const sources = await listImageFramesRecursive(spriteDir);
+  if (sources.length === 0) {
+    return null;
+  }
+
+  return {
+    format: "android",
+    rootDir,
+    spriteDir,
+    actionsXmlPath: await safePathExists(preferredAnimationPath)
+      ? preferredAnimationPath
+      : fallbackAnimationPath,
+    behaviorsXmlPath: null,
+    sources,
+    displayName: manifest.name,
+  };
+}
+
 async function findShimejiPackage(
   inputDir: string,
+  format: ShimejiImportFormat = "pc",
   actionsXmlPath?: string | null,
   behaviorsXmlPath?: string | null,
 ): Promise<ShimejiPackage | null> {
+  if (format === "android") {
+    return findAndroidPackage(inputDir);
+  }
+
   const spriteDir = await findBestSpriteDir(inputDir);
   const sources = await listImageFramesRecursive(spriteDir);
   if (!sources.some((source) => isShimejiFrameName(source.name))) {
@@ -284,6 +403,7 @@ async function findShimejiPackage(
   const confDir = await joinPath(rootDir, "conf");
 
   return {
+    format: "pc",
     rootDir,
     spriteDir,
     actionsXmlPath: actionsXmlPath ?? (await firstExistingFile(confDir, ACTION_FILE_NAMES)),
@@ -295,10 +415,16 @@ async function findShimejiPackage(
 
 export async function analyzeShimejiGraphImportSelection(
   inputDir: string,
+  format: ShimejiImportFormat = "pc",
   actionsXmlPath?: string | null,
   behaviorsXmlPath?: string | null,
 ): Promise<ShimejiGraphImportScan> {
-  const shimeji = await findShimejiPackage(inputDir, actionsXmlPath, behaviorsXmlPath);
+  const shimeji = await findShimejiPackage(
+    inputDir,
+    format,
+    actionsXmlPath,
+    behaviorsXmlPath,
+  );
   const messages: string[] = [];
 
   if (shimeji === null) {
@@ -308,14 +434,31 @@ export async function analyzeShimejiGraphImportSelection(
       frameCount: 0,
       actionsXmlPath: null,
       behaviorsXmlPath: null,
-      messages: ["No shime*.png frames found. Choose the character img folder or full Shimeji folder."],
+      messages: [
+        format === "android"
+          ? "No Android Shimeji manifest/animation/sprites found. Choose the folder with manifest.json, animation.json, and sprites."
+          : "No shime*.png frames found. Choose the character img folder or full Shimeji folder.",
+      ],
     };
   }
 
-  const frameCount = shimeji.sources.filter((source) =>
-    isShimejiFrameName(source.name),
-  ).length;
-  messages.push(`Found ${frameCount} Shimeji frames in ${shimeji.spriteDir}.`);
+  const frameCount =
+    format === "android"
+      ? shimeji.sources.length
+      : shimeji.sources.filter((source) => isShimejiFrameName(source.name)).length;
+  messages.push(`Found ${frameCount} sprite frame(s) in ${shimeji.spriteDir}.`);
+
+  if (format === "android") {
+    messages.push(`Found Android animation JSON at ${shimeji.actionsXmlPath}.`);
+    return {
+      status: "ready",
+      spriteDir: shimeji.spriteDir,
+      frameCount,
+      actionsXmlPath: shimeji.actionsXmlPath,
+      behaviorsXmlPath: null,
+      messages,
+    };
+  }
 
   if (shimeji.actionsXmlPath) {
     messages.push(`Found actions XML at ${shimeji.actionsXmlPath}.`);
@@ -717,6 +860,40 @@ async function buildCanvasMetrics(
   };
 }
 
+function scaleCanvasMetrics(
+  canvas: {
+    width: number;
+    height: number;
+    anchor: ShimejiPoint;
+  },
+  scale: number,
+): {
+  width: number;
+  height: number;
+  anchor: ShimejiPoint;
+} {
+  if (scale >= 1) {
+    return canvas;
+  }
+
+  return {
+    width: Math.max(1, Math.ceil(canvas.width * scale)),
+    height: Math.max(1, Math.ceil(canvas.height * scale)),
+    anchor: {
+      x: Math.max(1, Math.ceil(canvas.anchor.x * scale)),
+      y: Math.max(1, Math.ceil(canvas.anchor.y * scale)),
+    },
+  };
+}
+
+function androidRuntimeSpriteScale(canvasHeight: number): number {
+  if (canvasHeight <= ANDROID_TARGET_VISIBLE_HEIGHT) {
+    return 1;
+  }
+
+  return Math.max(0.25, ANDROID_TARGET_VISIBLE_HEIGHT / canvasHeight);
+}
+
 function bitmapContentBounds(bitmap: ImageBitmap): {
   x: number;
   y: number;
@@ -770,10 +947,13 @@ async function writeNormalizedFrame(
   canvasAnchor: ShimejiPoint,
   width: number,
   height: number,
+  renderScale = 1,
 ): Promise<void> {
   const bitmap = await loadImageBitmap(sourcePath);
   try {
     const bounds = bitmapContentBounds(bitmap);
+    const targetWidth = Math.max(1, Math.round(bounds.width * renderScale));
+    const targetHeight = Math.max(1, Math.round(bounds.height * renderScale));
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -785,16 +965,16 @@ async function writeNormalizedFrame(
     context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, width, height);
     const adjustedAnchor = {
-      x: imageAnchor.x - bounds.x,
-      y: imageAnchor.y - bounds.y,
+      x: (imageAnchor.x - bounds.x) * renderScale,
+      y: (imageAnchor.y - bounds.y) * renderScale,
     };
     const x = Math.min(
       Math.max(0, Math.round(canvasAnchor.x - adjustedAnchor.x)),
-      Math.max(0, width - bounds.width),
+      Math.max(0, width - targetWidth),
     );
     const y = Math.min(
       Math.max(0, Math.round(canvasAnchor.y - adjustedAnchor.y)),
-      Math.max(0, height - bounds.height),
+      Math.max(0, height - targetHeight),
     );
     context.drawImage(
       bitmap,
@@ -804,8 +984,8 @@ async function writeNormalizedFrame(
       bounds.height,
       x,
       y,
-      bounds.width,
-      bounds.height,
+      targetWidth,
+      targetHeight,
     );
     await writeBinary(destPath, await canvasToPngBytes(canvas));
   } finally {
@@ -814,6 +994,10 @@ async function writeNormalizedFrame(
 }
 
 async function defaultShimejiName(shimeji: ShimejiPackage): Promise<string> {
+  if (shimeji.displayName?.trim()) {
+    return shimeji.displayName.trim();
+  }
+
   const spriteName = await getBasename(shimeji.spriteDir);
   if (spriteName.toLowerCase() !== "img" && spriteName.toLowerCase() !== "shimeji") {
     return spriteName;
@@ -834,6 +1018,212 @@ function averageWalkSpeed(actions: ReadonlyMap<string, ParsedAction>): number {
   }
 
   return velocities.reduce((total, velocity) => total + velocity, 0) / velocities.length;
+}
+
+function spriteIndexFromName(name: string): number | null {
+  const match = name.match(/^(\d+)/);
+  if (!match) {
+    return null;
+  }
+
+  const index = Number(match[1]);
+  return Number.isInteger(index) ? index : null;
+}
+
+function sourceBySpriteIndex(sources: readonly SourceFrame[]): ReadonlyMap<number, SourceFrame> {
+  const map = new Map<number, SourceFrame>();
+  for (const source of sources) {
+    const index = spriteIndexFromName(source.name);
+    if (index !== null && !map.has(index)) {
+      map.set(index, source);
+    }
+  }
+  return map;
+}
+
+function firstAndroidAction(
+  actions: ReadonlyMap<string, ParsedAction>,
+  subtypes: readonly string[],
+  directions: readonly string[] = ["LEFT", "ANY", "RIGHT"],
+): string | undefined {
+  for (const direction of directions) {
+    for (const action of actions.values()) {
+      if (
+        action.poses.length > 0 &&
+        action.type !== null &&
+        subtypes.includes(action.type.toUpperCase()) &&
+        (action.condition ?? "ANY").toUpperCase() === direction
+      ) {
+        return action.name;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function buildAndroidDefaultActions(
+  actions: ReadonlyMap<string, ParsedAction>,
+): Partial<Record<ShimejiActionIntent, string>> {
+  const defaults: Partial<Record<ShimejiActionIntent, string>> = {
+    idle: firstAndroidAction(actions, ["STAND"]),
+    walk: firstAndroidAction(actions, ["WALK"]),
+    floorCrawl: firstAndroidAction(actions, ["CREEP"]),
+    sit: firstAndroidAction(actions, ["SIT", "SLEEP"]),
+    sitAlt: firstAndroidAction(actions, ["SIT_LOOK_UP", "LOOK_UP"]),
+    sitAlt2: firstAndroidAction(actions, ["STRETCH"]),
+    sitOnBar: firstAndroidAction(actions, ["SIT_DOWN"]),
+    dangleOnBar: firstAndroidAction(actions, ["IDLE_DANGLE_LEGS"]),
+    fall: firstAndroidAction(actions, ["FALL"], ["ANY", "LEFT", "RIGHT"]),
+    bounce: firstAndroidAction(actions, ["BOUNCE"]),
+    dragged: firstAndroidAction(actions, ["DRAG"], ["ANY", "LEFT", "RIGHT"]),
+    dragResist: firstAndroidAction(actions, ["DRAG"], ["ANY", "LEFT", "RIGHT"]),
+    grabWall: firstAndroidAction(actions, ["CLIMB"]),
+    climbWall: firstAndroidAction(actions, ["CLIMB"]),
+    grabCeiling: firstAndroidAction(actions, ["HANG"]),
+    climbCeiling: firstAndroidAction(actions, ["HANG"]),
+  };
+
+  return Object.fromEntries(
+    Object.entries(defaults).filter((entry): entry is [ShimejiActionIntent, string] =>
+      typeof entry[1] === "string",
+    ),
+  );
+}
+
+function buildAndroidMenuActions(
+  actions: ReadonlyMap<string, ParsedAction>,
+  defaults: Partial<Record<ShimejiActionIntent, string>>,
+): ShimejiMenuAction[] {
+  const blockedSubtypes = new Set([
+    "BOUNCE",
+    "CLIMB",
+    "CREEP",
+    "DESCEND",
+    "DRAG",
+    "FALL",
+    "FLING",
+    "JUMP",
+    "JUMP_DOWN",
+    "JUMP_UP",
+    "STAND",
+    "WALK",
+  ]);
+  const defaultsToSkip = new Set(Object.values(defaults).filter(Boolean));
+  const menu: ShimejiMenuAction[] = [];
+
+  for (const action of actions.values()) {
+    const subtype = action.type?.toUpperCase();
+    if (
+      menu.length >= 6 ||
+      action.poses.length === 0 ||
+      defaultsToSkip.has(action.name) ||
+      (subtype !== undefined && blockedSubtypes.has(subtype))
+    ) {
+      continue;
+    }
+
+    menu.push({ actionName: action.name, label: action.name.replace(/_/g, " ") });
+  }
+
+  return menu;
+}
+
+function averageAndroidWalkSpeed(
+  actions: ReadonlyMap<string, ParsedAction>,
+  defaults: Partial<Record<ShimejiActionIntent, string>>,
+): number {
+  const walk = defaults.walk ? actions.get(defaults.walk) : undefined;
+  const velocities = (walk?.poses ?? [])
+    .map((pose) => Math.abs(pose.velocity.x))
+    .filter((velocity) => velocity > 0);
+
+  if (velocities.length === 0) {
+    return 2;
+  }
+
+  return velocities.reduce((total, velocity) => total + velocity, 0) / velocities.length;
+}
+
+async function sourceVisibleAnchor(sourcePath: string): Promise<ShimejiPoint> {
+  const bitmap = await loadImageBitmap(sourcePath);
+  try {
+    const bounds = bitmapContentBounds(bitmap);
+    return {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height,
+    };
+  } finally {
+    bitmap.close();
+  }
+}
+
+async function buildAndroidParsedActions(
+  shimeji: ShimejiPackage,
+  animationFile: AndroidAnimationFile,
+  report: ShimejiImportReport,
+): Promise<Map<string, ParsedAction>> {
+  if (!Array.isArray(animationFile.animations)) {
+    throw new Error("Android animation.json is missing animations.");
+  }
+
+  const sourceByIndex = sourceBySpriteIndex(shimeji.sources);
+  const anchorBySourcePath = new Map<string, ShimejiPoint>();
+  const actions = new Map<string, ParsedAction>();
+
+  for (const animation of animationFile.animations) {
+    if (!animation.key || !Array.isArray(animation.frames)) {
+      continue;
+    }
+
+    const poses: ParsedPose[] = [];
+    for (const frame of animation.frames) {
+      const source = sourceByIndex.get(frame.sprite);
+      if (!source) {
+        report.missingImages.push(String(frame.sprite));
+        continue;
+      }
+
+      if (!anchorBySourcePath.has(source.path)) {
+        anchorBySourcePath.set(source.path, await sourceVisibleAnchor(source.path));
+      }
+      const imageAnchor = anchorBySourcePath.get(source.path);
+
+      poses.push({
+        image: source.name,
+        sourcePath: source.path,
+        durationTicks: parseDurationTicks(
+          frame.durationTicks === undefined ? null : String(frame.durationTicks),
+        ),
+        velocity: {
+          x: typeof frame.dx === "number" && Number.isFinite(frame.dx)
+            ? frame.dx
+            : 0,
+          y: typeof frame.dy === "number" && Number.isFinite(frame.dy)
+            ? frame.dy
+            : 0,
+        },
+        imageAnchor: imageAnchor ?? { x: DEFAULT_FRAME_SIZE / 2, y: DEFAULT_FRAME_SIZE },
+      });
+    }
+
+    actions.set(animation.key, {
+      name: animation.key,
+      type: animation.subtype ?? null,
+      borderType: animation.type ?? null,
+      condition: animation.direction ?? null,
+      poses,
+      references: [],
+    });
+  }
+
+  report.actionsParsed = actions.size;
+  report.posesParsed = Array.from(actions.values()).reduce(
+    (total, action) => total + action.poses.length,
+    0,
+  );
+
+  return actions;
 }
 
 function flattenAction(
@@ -857,12 +1247,115 @@ function flattenAction(
   );
 }
 
+function buildGraphActions(
+  parsedActions: ReadonlyMap<string, ParsedAction>,
+): Record<string, ShimejiGraphAction> {
+  const graphActions: Record<string, ShimejiGraphAction> = {};
+  for (const action of parsedActions.values()) {
+    graphActions[action.name] = {
+      name: action.name,
+      type: action.type,
+      borderType: action.borderType,
+      condition: action.condition,
+      poses: action.poses.map((pose): ShimejiGraphPose => ({
+        src: "",
+        source: pose.sourcePath,
+        durationTicks: pose.durationTicks,
+        velocity: pose.velocity,
+        imageAnchor: pose.imageAnchor,
+      })),
+      references: action.references.map((name) => ({ name })),
+    };
+  }
+
+  return graphActions;
+}
+
+async function buildAndroidGraphDraftFromFolder(
+  inputDir: string,
+): Promise<ShimejiGraphDraft> {
+  const shimeji = await findAndroidPackage(inputDir);
+  if (shimeji === null || shimeji.actionsXmlPath === null) {
+    throw new Error("No Android Shimeji package found. Choose the folder with manifest.json, animation.json, and sprites.");
+  }
+
+  const manifest = await readJson<AndroidManifest>(await joinPath(shimeji.rootDir, "manifest.json"));
+  const animationFile = await readJson<AndroidAnimationFile>(shimeji.actionsXmlPath);
+  const report: ShimejiImportReport = {
+    actionsParsed: 0,
+    behaviorsParsed: 0,
+    posesParsed: 0,
+    missingImages: [],
+    unsupportedActions: [],
+    issues: [],
+  };
+
+  const parsedActions = await buildAndroidParsedActions(
+    shimeji,
+    animationFile,
+    report,
+  );
+  const defaultActions = buildAndroidDefaultActions(parsedActions);
+  const menuActions = buildAndroidMenuActions(parsedActions, defaultActions);
+  const allUsedPoses = Array.from(new Set([
+    ...Object.values(defaultActions).filter((name): name is string => Boolean(name))
+      .flatMap((name) => flattenAction(name, parsedActions)),
+    ...menuActions.flatMap((item) => flattenAction(item.actionName, parsedActions)),
+  ]));
+  const rawCanvas = await buildCanvasMetrics(
+    allUsedPoses.length > 0
+      ? allUsedPoses
+      : Array.from(parsedActions.values()).flatMap((action) => action.poses),
+  );
+  const runtimeSpriteScale = androidRuntimeSpriteScale(rawCanvas.height);
+  const canvas = scaleCanvasMetrics(rawCanvas, runtimeSpriteScale);
+
+  if (report.missingImages.length > 0) {
+    report.issues.push({
+      severity: "warning",
+      message: `${report.missingImages.length} Android sprite reference(s) could not be found.`,
+    });
+  }
+  if (runtimeSpriteScale < 1) {
+    report.issues.push({
+      severity: "info",
+      message: `Android sprites were normalized from ${rawCanvas.height}px to about ${canvas.height}px tall so this Tomoji starts at desktop size.`,
+    });
+  }
+
+  return {
+    name: manifest.name ?? await defaultShimejiName(shimeji),
+    shimeji,
+    graph: {
+      actions: buildGraphActions(parsedActions),
+      behaviors: {},
+      defaultActions,
+      menuActions,
+      spriteCanvas: canvas,
+      importReport: report,
+    },
+    scale: 1,
+    speed: averageAndroidWalkSpeed(parsedActions, defaultActions),
+    runtimeSpriteScale,
+  };
+}
+
 export async function buildShimejiGraphDraftFromFolder(
   inputDir: string,
+  format: ShimejiImportFormat = "pc",
   actionsXmlPath?: string | null,
   behaviorsXmlPath?: string | null,
 ): Promise<ShimejiGraphDraft> {
-  const shimeji = await findShimejiPackage(inputDir, actionsXmlPath, behaviorsXmlPath);
+  if (format === "android") {
+    return buildAndroidGraphDraftFromFolder(inputDir);
+  }
+
+  const shimeji = await findShimejiPackage(
+    inputDir,
+    format,
+    actionsXmlPath,
+    behaviorsXmlPath,
+  );
   if (shimeji === null) {
     throw new Error("No Shimeji frames found. Choose the full Shimeji folder or img character folder.");
   }
@@ -909,29 +1402,11 @@ export async function buildShimejiGraphDraftFromFolder(
     });
   }
 
-  const graphActions: Record<string, ShimejiGraphAction> = {};
-  for (const action of parsedActions.values()) {
-    graphActions[action.name] = {
-      name: action.name,
-      type: action.type,
-      borderType: action.borderType,
-      condition: action.condition,
-      poses: action.poses.map((pose): ShimejiGraphPose => ({
-        src: "",
-        source: pose.sourcePath,
-        durationTicks: pose.durationTicks,
-        velocity: pose.velocity,
-        imageAnchor: pose.imageAnchor,
-      })),
-      references: action.references.map((name) => ({ name })),
-    };
-  }
-
   return {
     name: await defaultShimejiName(shimeji),
     shimeji,
     graph: {
-      actions: graphActions,
+      actions: buildGraphActions(parsedActions),
       behaviors,
       defaultActions,
       menuActions,
@@ -957,6 +1432,7 @@ async function writeGraphSprites(
   const sourceToOriginal = new Map<string, string>();
   const usedNames = new Set<string>();
   const poses = Object.values(draft.graph.actions).flatMap((action) => action.poses);
+  const renderScale = draft.runtimeSpriteScale ?? 1;
 
   for (let index = 0; index < poses.length; index += 1) {
     const pose = poses[index];
@@ -982,6 +1458,7 @@ async function writeGraphSprites(
       draft.graph.spriteCanvas.anchor,
       draft.graph.spriteCanvas.width,
       draft.graph.spriteCanvas.height,
+      renderScale,
     );
     sourceToRuntime.set(pose.source, `sprites/shimeji/${filename}`);
 
@@ -999,6 +1476,13 @@ async function writeGraphSprites(
           ...pose,
           src: pose.source ? sourceToRuntime.get(pose.source) ?? pose.src : pose.src,
           source: pose.source ? sourceToOriginal.get(pose.source) : undefined,
+          imageAnchor:
+            renderScale < 1
+              ? {
+                  x: pose.imageAnchor.x * renderScale,
+                  y: pose.imageAnchor.y * renderScale,
+                }
+              : pose.imageAnchor,
         })),
       },
     ]),
@@ -1021,7 +1505,9 @@ export async function convertShimejiGraphDraft(
     id,
     name: id,
     version: "2.0.0",
-    author: "Imported (Shimeji)",
+    author: draft.shimeji.format === "android"
+      ? "Imported (Android Shimeji)"
+      : "Imported (Shimeji)",
     defaultScale: draft.scale,
     defaultSpeed: draft.speed,
     frameWidth: graph.spriteCanvas.width,

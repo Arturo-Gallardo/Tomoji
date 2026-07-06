@@ -10,6 +10,7 @@ import {
   pickShimejiGraphBehaviorsFile,
   pickShimejiGraphFolder,
   type ShimejiGraphDraft,
+  type ShimejiImportFormat,
   type ShimejiGraphImportScan,
 } from "../../services/shimejiGraphImporter";
 
@@ -30,36 +31,63 @@ function errorMessage(caught: unknown): string {
   return "import failed";
 }
 
-function FolderTreeExample() {
+const FORMAT_LABELS: Record<ShimejiImportFormat, string> = {
+  pc: "PC Shimeji",
+  android: "Android Shimeji",
+};
+
+function FolderTreeExample({ format }: { format: ShimejiImportFormat }) {
+  const isAndroid = format === "android";
+
   return (
     <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
       <p className="mb-3 text-sm font-bold text-white">
-        Select the folder with sprites + actions
+        Select the {FORMAT_LABELS[format]} folder
       </p>
       <pre className="overflow-x-auto rounded-xl bg-black/40 p-4 text-xs leading-6 text-neutral-300">
-{`Shimeji Folder/
-├─ Shimeji-ee.jar
-├─ conf/
-└─ img/
-   └─ Character Folder/     ← choose this if it has conf/
-      ├─ conf/
-      │  ├─ actions.xml     ← required
-      │  └─ behaviors.xml
-      ├─ shime1.png     ← PNG recommended; JPG/WebP/BMP also work
-      ├─ shime2.webp
-      └─ ...`}
+{isAndroid
+  ? `Android Shimeji folder/
+|-- manifest.json       <- required
+|-- animation.json      <- required
+|-- thumbnail.webp
+|-- sprites/
+|   |-- 0000.webp
+|   |-- 0001.webp
+|   |-- ...`
+  : `PC Shimeji folder/
+|-- Shimeji-ee.jar      <- ignored
+|-- conf/
+|   |-- actions.xml     <- required
+|   |-- behaviors.xml   <- optional, better import
+|-- img/
+|   |-- Character/
+|   |   |-- shime1.png
+|   |   |-- shime2.png
+|   |   |-- ...`}
       </pre>
-      <p className="mt-3 text-xs text-neutral-500">
-        Best import needs both <span className="text-neutral-300">conf/actions.xml</span>{" "}
-        and the <span className="text-neutral-300">img</span> sprites. If{" "}
-        <span className="text-neutral-300">conf</span> is outside{" "}
-        <span className="text-neutral-300">img</span>, choose the outer folder;
-        Tomoji will still pick the correct img sprite folder internally.
-      </p>
-      <p className="mt-2 text-xs text-neutral-500">
-        Tomoji reads <span className="text-neutral-300">actions.xml</span> for
-        frame order, durations, and movement. JAR files stay ignored.
-      </p>
+      {isAndroid ? (
+        <p className="mt-3 text-xs text-neutral-500">
+          Choose the folder that directly contains{" "}
+          <span className="text-neutral-300">manifest.json</span>. Tomoji reads{" "}
+          <span className="text-neutral-300">animation.json</span> for frame
+          order, timing, movement, and menu actions.
+        </p>
+      ) : (
+        <>
+          <p className="mt-3 text-xs text-neutral-500">
+            Choose the folder that contains{" "}
+            <span className="text-neutral-300">conf</span> and{" "}
+            <span className="text-neutral-300">img</span>. If the character
+            folder inside <span className="text-neutral-300">img</span> has its
+            own <span className="text-neutral-300">conf</span>, choose that
+            character folder instead.
+          </p>
+          <p className="mt-2 text-xs text-neutral-500">
+            Tomoji reads <span className="text-neutral-300">actions.xml</span>{" "}
+            for frame order, durations, and movement. JAR files stay ignored.
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -74,6 +102,7 @@ export function ShimejiFolderImportScreen({
   const [isImporting, setIsImporting] = useState(false);
   const [isDropActive, setIsDropActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importFormat, setImportFormat] = useState<ShimejiImportFormat>("pc");
   const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(
     null,
   );
@@ -98,6 +127,7 @@ export function ShimejiFolderImportScreen({
       try {
         const nextScan = await analyzeShimejiGraphImportSelection(
           folderPath,
+          importFormat,
           nextActionsXmlPath,
           nextBehaviorsXmlPath,
         );
@@ -111,6 +141,7 @@ export function ShimejiFolderImportScreen({
 
         const nextDraft = await buildShimejiGraphDraftFromFolder(
           folderPath,
+          importFormat,
           nextScan.actionsXmlPath,
           nextScan.behaviorsXmlPath,
         );
@@ -122,8 +153,18 @@ export function ShimejiFolderImportScreen({
         setIsLoadingFolder(false);
       }
     },
-    [actionsXmlPath, behaviorsXmlPath, isImporting, isLoadingFolder],
+    [actionsXmlPath, behaviorsXmlPath, importFormat, isImporting, isLoadingFolder],
   );
+
+  const handleFormatChange = (nextFormat: ShimejiImportFormat) => {
+    setImportFormat(nextFormat);
+    setDraft(null);
+    setScan(null);
+    setError(null);
+    setSelectedFolderPath(null);
+    setActionsXmlPath(null);
+    setBehaviorsXmlPath(null);
+  };
 
   const handleImport = async () => {
     if (draft === null || isImporting) {
@@ -230,18 +271,43 @@ export function ShimejiFolderImportScreen({
                 : "border-neutral-700 bg-neutral-900/40"
             }`}
           >
-            <p className="text-sm font-bold text-white">
-              Drop the Shimeji folder here
+            <label className="block text-sm font-bold text-white">
+              Shimeji type
+              <select
+                value={importFormat}
+                disabled={isLoadingFolder || isImporting}
+                onChange={(event) =>
+                  handleFormatChange(event.target.value as ShimejiImportFormat)
+                }
+                className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-normal text-white outline-none focus:border-white"
+              >
+                <option value="pc">PC Shimeji (actions.xml + img)</option>
+                <option value="android">
+                  Android Shimeji (manifest.json + sprites)
+                </option>
+              </select>
+            </label>
+            <p className="mt-5 text-sm font-bold text-white">
+              Drop the {FORMAT_LABELS[importFormat]} folder here
             </p>
             <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-              Select the folder that includes{" "}
-              <span className="text-neutral-200">conf/actions.xml</span> and{" "}
-              <span className="text-neutral-200">img</span>. If the character
-              folder inside <span className="text-neutral-200">img</span> has
-              its own <span className="text-neutral-200">conf</span>, choose
-              that character folder. If sprites and{" "}
-              <span className="text-neutral-200">actions.xml</span> are split,
-              choose both with the buttons below.
+              {importFormat === "android" ? (
+                <>
+                  Select the folder with{" "}
+                  <span className="text-neutral-200">manifest.json</span>,{" "}
+                  <span className="text-neutral-200">animation.json</span>, and{" "}
+                  <span className="text-neutral-200">sprites</span>. No XML
+                  files needed.
+                </>
+              ) : (
+                <>
+                  Select the folder with{" "}
+                  <span className="text-neutral-200">conf/actions.xml</span>{" "}
+                  and <span className="text-neutral-200">img</span>. If XML and
+                  sprites are split, choose the folder first, then choose the
+                  XML files below.
+                </>
+              )}
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <button
@@ -250,31 +316,37 @@ export function ShimejiFolderImportScreen({
                 onClick={() => void handleChooseFolder()}
                 className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
               >
-                {isLoadingFolder ? "Reading..." : "Choose Shimeji folder"}
+                {isLoadingFolder
+                  ? "Reading..."
+                  : `Choose ${FORMAT_LABELS[importFormat]} folder`}
               </button>
-              <button
-                type="button"
-                disabled={isLoadingFolder || isImporting}
-                onClick={() => void handleChooseActionsFile()}
-                className="rounded-xl border border-neutral-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-              >
-                Choose actions XML
-              </button>
-              <button
-                type="button"
-                disabled={isLoadingFolder || isImporting}
-                onClick={() => void handleChooseBehaviorsFile()}
-                className="rounded-xl border border-neutral-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-              >
-                Choose behaviors XML
-              </button>
+              {importFormat === "pc" ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={isLoadingFolder || isImporting}
+                    onClick={() => void handleChooseActionsFile()}
+                    className="rounded-xl border border-neutral-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    Choose actions XML
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLoadingFolder || isImporting}
+                    onClick={() => void handleChooseBehaviorsFile()}
+                    className="rounded-xl border border-neutral-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    Choose behaviors XML
+                  </button>
+                </>
+              ) : null}
             </div>
-            {actionsXmlPath ? (
+            {importFormat === "pc" && actionsXmlPath ? (
               <p className="mt-3 text-xs text-neutral-500">
                 Selected actions XML: {actionsXmlPath}
               </p>
             ) : null}
-            {behaviorsXmlPath ? (
+            {importFormat === "pc" && behaviorsXmlPath ? (
               <p className="mt-2 text-xs text-neutral-500">
                 Selected behaviors XML: {behaviorsXmlPath}
               </p>
@@ -358,7 +430,7 @@ export function ShimejiFolderImportScreen({
           ) : null}
         </div>
 
-        <FolderTreeExample />
+        <FolderTreeExample format={importFormat} />
       </div>
     </TomojiPageLayout>
   );
