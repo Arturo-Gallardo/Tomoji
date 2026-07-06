@@ -902,6 +902,15 @@ function bitmapContentBounds(bitmap: ImageBitmap): {
   width: number;
   height: number;
 } {
+  return bitmapVisibleBounds(bitmap) ?? {
+    x: 0,
+    y: 0,
+    width: bitmap.width,
+    height: bitmap.height,
+  };
+}
+
+function bitmapVisibleBounds(bitmap: ImageBitmap): VisibleFrameBounds | null {
   const canvas = document.createElement("canvas");
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
@@ -931,7 +940,7 @@ function bitmapContentBounds(bitmap: ImageBitmap): {
   }
 
   if (maxX < minX || maxY < minY) {
-    return { x: 0, y: 0, width: bitmap.width, height: bitmap.height };
+    return null;
   }
 
   return {
@@ -1159,12 +1168,21 @@ async function sourceVisibleBounds(sourcePath: string): Promise<VisibleFrameBoun
   }
 }
 
-async function sourceVisibleAnchor(sourcePath: string): Promise<ShimejiPoint> {
-  const bounds = await sourceVisibleBounds(sourcePath);
-  return {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height,
-  };
+async function androidSourceVisibleAnchor(
+  sourcePath: string,
+): Promise<ShimejiPoint | null> {
+  const bitmap = await loadImageBitmap(sourcePath);
+  try {
+    const bounds = bitmapVisibleBounds(bitmap);
+    return bounds
+      ? {
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y + bounds.height,
+        }
+      : null;
+  } finally {
+    bitmap.close();
+  }
 }
 
 async function clampAnchorToVisibleBottom(
@@ -1202,7 +1220,8 @@ async function buildAndroidParsedActions(
   }
 
   const sourceByIndex = sourceBySpriteIndex(shimeji.sources);
-  const anchorBySourcePath = new Map<string, ShimejiPoint>();
+  const anchorBySourcePath = new Map<string, ShimejiPoint | null>();
+  const transparentImages = new Set<string>();
   const actions = new Map<string, ParsedAction>();
 
   for (const animation of animationFile.animations) {
@@ -1219,9 +1238,16 @@ async function buildAndroidParsedActions(
       }
 
       if (!anchorBySourcePath.has(source.path)) {
-        anchorBySourcePath.set(source.path, await sourceVisibleAnchor(source.path));
+        anchorBySourcePath.set(
+          source.path,
+          await androidSourceVisibleAnchor(source.path),
+        );
       }
       const imageAnchor = anchorBySourcePath.get(source.path);
+      if (!imageAnchor) {
+        transparentImages.add(source.name);
+        continue;
+      }
 
       poses.push({
         image: source.name,
@@ -1237,7 +1263,7 @@ async function buildAndroidParsedActions(
             ? frame.dy
             : 0,
         },
-        imageAnchor: imageAnchor ?? { x: DEFAULT_FRAME_SIZE / 2, y: DEFAULT_FRAME_SIZE },
+        imageAnchor,
       });
     }
 
@@ -1256,6 +1282,12 @@ async function buildAndroidParsedActions(
     (total, action) => total + action.poses.length,
     0,
   );
+  if (transparentImages.size > 0) {
+    report.issues.push({
+      severity: "warning",
+      message: `Ignored ${transparentImages.size} fully transparent Android sprite frame(s).`,
+    });
+  }
 
   return actions;
 }

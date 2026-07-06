@@ -581,7 +581,7 @@ async function buildShimejiGraphRegistry(
     posesByAction.set(action, poses);
     const frames = await graphPoseFrames(manifest.id, poses);
     semanticActions.set(action, {
-      frames: frames.length > 0 ? frames : [FALLBACK_FRAME],
+      frames,
       tickDuration: 6,
       frameTickDurations: poses.length > 0
         ? poses.map((pose) => pose.durationTicks)
@@ -595,10 +595,33 @@ async function buildShimejiGraphRegistry(
   }
 
   const hasFrames = (action: CompanionAction): boolean =>
-    (semanticActions.get(action)?.frames[0] ?? FALLBACK_FRAME) !== FALLBACK_FRAME;
+    (posesByAction.get(action)?.length ?? 0) > 0;
   const firstFrame = (action: CompanionAction): string | undefined => {
     const animation = semanticActions.get(action);
-    return animation?.frames[0] === FALLBACK_FRAME ? undefined : animation?.frames[0];
+    return hasFrames(action) ? animation?.frames[0] : undefined;
+  };
+  const idleFallback = semanticActions.get("idle");
+
+  const getAnimation = (action: CompanionAction): RuntimeAnimation => {
+    const animation = semanticActions.get(action);
+    if (animation && animation.frames.length > 0) {
+      return animation;
+    }
+
+    if (idleFallback && idleFallback.frames.length > 0) {
+      return {
+        frames: idleFallback.frames,
+        tickDuration: animation?.tickDuration ?? idleFallback.tickDuration,
+        frameTickDurations: idleFallback.frameTickDurations,
+        velocity: animation?.velocity ?? fallbackVelocity(action),
+      };
+    }
+
+    return {
+      frames: [FALLBACK_FRAME],
+      tickDuration: 6,
+      velocity: animation?.velocity ?? fallbackVelocity(action),
+    };
   };
 
   const contextMenuActions = [
@@ -612,13 +635,7 @@ async function buildShimejiGraphRegistry(
     playbackStyle: "sequential",
     spriteWidth: graph.spriteCanvas.width,
     spriteHeight: graph.spriteCanvas.height,
-    getAnimation: (action) =>
-      semanticActions.get(action) ??
-      semanticActions.get("idle") ?? {
-        frames: [FALLBACK_FRAME],
-        tickDuration: 6,
-        velocity: { x: 0, y: 0 },
-      },
+    getAnimation,
     getSpriteAnchor: (action) => graphSpriteAnchor(action, graph.spriteCanvas),
     resolveDisplayAction,
     animateGrabbed: false,
