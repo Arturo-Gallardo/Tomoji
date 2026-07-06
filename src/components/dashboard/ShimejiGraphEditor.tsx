@@ -81,6 +81,25 @@ export function ShimejiGraphEditor({
   }, [characterId]);
 
   const menuCandidates = useMemo(() => data?.actionNames ?? [], [data]);
+  const hasUnsavedChanges =
+    data?.manifest.shimejiGraph !== undefined &&
+    (JSON.stringify(defaultActions) !==
+      JSON.stringify(data.manifest.shimejiGraph.defaultActions) ||
+      JSON.stringify(menuActionNames) !==
+        JSON.stringify(
+          data.editableMenuActions.map((action) => action.actionName),
+        ));
+
+  const handleClose = () => {
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("Discard unsaved graph mapping changes?")
+    ) {
+      return;
+    }
+
+    onClose();
+  };
 
   const toggleMenuAction = (actionName: string) => {
     setMenuActionNames((current) => {
@@ -119,7 +138,7 @@ export function ShimejiGraphEditor({
         header={
           <TomojiPageHeader
             title={`Edit Shimeji graph — ${characterName}`}
-            onBack={onClose}
+            onBack={handleClose}
           />
         }
       >
@@ -136,7 +155,7 @@ export function ShimejiGraphEditor({
         header={
           <TomojiPageHeader
             title={`Edit Shimeji graph — ${characterName}`}
-            onBack={onClose}
+            onBack={handleClose}
           />
         }
       >
@@ -154,14 +173,14 @@ export function ShimejiGraphEditor({
         <TomojiPageHeader
           title={`Edit Shimeji graph — ${characterName}`}
           subtitle="Edit semantic action mapping and context-menu animations"
-          onBack={onClose}
+          onBack={handleClose}
         />
       }
       footer={
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200"
           >
             Back

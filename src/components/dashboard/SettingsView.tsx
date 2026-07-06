@@ -53,6 +53,22 @@ export function SettingsView() {
                   void updateSettings({ restoreCompanionsOnLaunch: checked })
                 }
               />
+              <SettingsToggleRow
+                label="Confirm before deleting Tomojis"
+                description="Ask before deleting an imported character from disk"
+                checked={settings.confirmBeforeDelete}
+                onChange={(checked) =>
+                  void updateSettings({ confirmBeforeDelete: checked })
+                }
+              />
+              <SettingsToggleRow
+                label="Show helper tips"
+                description="Keep short onboarding hints visible in Tomojis and edit screens"
+                checked={settings.showHelperTips}
+                onChange={(checked) =>
+                  void updateSettings({ showHelperTips: checked })
+                }
+              />
             </SettingsSection>
 
             <SettingsSection

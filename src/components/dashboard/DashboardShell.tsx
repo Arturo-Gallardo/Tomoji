@@ -50,8 +50,26 @@ export function DashboardShell() {
               <DashboardOptionsPanel instance={selectedInstance} />
             </div>
           ) : (
-            <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-neutral-500">
-              {isSelectionLoading ? "Loading companions…" : "No companions on screen"}
+            <div className="flex min-h-0 flex-1 items-center justify-center">
+              {isSelectionLoading ? (
+                <p className="text-sm text-neutral-500">Loading companions...</p>
+              ) : (
+                <div className="max-w-sm text-center">
+                  <p className="text-sm font-bold text-white">
+                    No companions on screen
+                  </p>
+                  <p className="mt-2 text-sm text-neutral-500">
+                    Go to Tomojis, import a pack, then toggle a card on.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setTab("tomojis")}
+                    className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-black"
+                  >
+                    Open Tomojis
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

@@ -30,11 +30,26 @@ export function CharacterFrameEditor({
   const [isGraphImport, setIsGraphImport] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedDraftJson, setSavedDraftJson] = useState<string | null>(null);
 
   const { draft, isLoadingFolder, loadFromCharacter, mergeImgFolder } =
     controller;
   const hasRequiredFrames = hasRequiredAnimationAssignments(draft.assignments);
   const isLastStep = step === STEP_TITLES.length - 1;
+  const draftJson = JSON.stringify(draft);
+  const hasUnsavedChanges =
+    savedDraftJson !== null && savedDraftJson !== draftJson;
+
+  const handleClose = () => {
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("Discard unsaved frame changes?")
+    ) {
+      return;
+    }
+
+    onClose();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +81,16 @@ export function CharacterFrameEditor({
     };
   }, [characterId, loadFromCharacter]);
 
+  useEffect(() => {
+    if (
+      isGraphImport === false &&
+      savedDraftJson === null &&
+      draft.sources.length > 0
+    ) {
+      setSavedDraftJson(draftJson);
+    }
+  }, [draft.sources.length, draftJson, isGraphImport, savedDraftJson]);
+
   if (isGraphImport) {
     return (
       <ShimejiGraphEditor
@@ -79,9 +104,10 @@ export function CharacterFrameEditor({
 
   const handleSave = async () => {
     setIsSaving(true);
-    setSaveError(null);
+      setSaveError(null);
     try {
       await saveCharacterDraft(characterId, draft);
+      setSavedDraftJson(JSON.stringify(draft));
       onSaved();
     } catch (caught) {
       setSaveError(
@@ -98,7 +124,7 @@ export function CharacterFrameEditor({
         header={
           <TomojiPageHeader
             title={`Edit frames — ${characterName}`}
-            onBack={onClose}
+            onBack={handleClose}
           />
         }
       >
@@ -115,7 +141,7 @@ export function CharacterFrameEditor({
         header={
           <TomojiPageHeader
             title={`Edit frames — ${characterName}`}
-            onBack={onClose}
+            onBack={handleClose}
           />
         }
       >
@@ -131,7 +157,7 @@ export function CharacterFrameEditor({
         <div className="space-y-4">
           <TomojiPageHeader
             title={`Edit frames — ${characterName}`}
-            onBack={onClose}
+            onBack={handleClose}
           />
           <nav
             className="flex flex-wrap gap-2"

@@ -76,13 +76,15 @@ export function DashboardHeader({ activeTab, onTabChange }: DashboardHeaderProps
         </nav>
 
         <div className="absolute right-6 flex items-center gap-3">
-          <span className="text-sm font-bold text-white">Account name</span>
+          <span className="hidden text-xs font-bold uppercase tracking-wide text-neutral-500 sm:inline">
+            Sign in soon
+          </span>
           <button
             type="button"
             disabled
-            title="Coming soon"
-            className="h-8 w-8 shrink-0 rounded-full border-2 border-white"
-            aria-label="Account"
+            title="Account and sync coming soon"
+            className="h-8 w-8 shrink-0 rounded-full border-2 border-neutral-600 opacity-60"
+            aria-label="Account coming soon"
           />
         </div>
       </div>

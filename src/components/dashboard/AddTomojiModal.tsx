@@ -20,14 +20,14 @@ export function AddTomojiModal({
   const options: AddOption[] = [
     {
       id: "import-shimeji",
-      label: "Import Shimeji",
-      description: "Best path: preserve Shimeji actions, poses, anchors, and timing",
+      label: "Import Shimeji pack",
+      description: "PC or Android Shimeji. Best for preserving actions, timing, and movement.",
       onSelect: onImportShimeji,
     },
     {
       id: "import-tomoji",
       label: "Import Tomoji folder",
-      description: "Load an existing Tomoji character folder",
+      description: "Restore an already-converted Tomoji character folder.",
       onSelect: onImportTomoji,
     },
   ];
@@ -46,7 +46,12 @@ export function AddTomojiModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white">Add a Tomoji</h2>
+          <div>
+            <h2 className="text-lg font-bold text-white">Add a Tomoji</h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              Not sure? Pick Shimeji pack for downloaded PC/Android packs.
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}

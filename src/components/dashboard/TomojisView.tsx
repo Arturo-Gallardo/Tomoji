@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useAppSettings } from "../../hooks/useAppSettings";
 import { useCompanionInstances } from "../../hooks/useCompanionInstances";
 import { openCharactersFolder } from "../../services/tomojiStorage";
 import { ShimejiFolderImportScreen } from "../import/ShimejiFolderImportScreen";
@@ -60,6 +61,45 @@ function ArchiveIcon() {
   );
 }
 
+function TomojiQuickStart({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="mb-8 grid gap-3 md:grid-cols-3">
+      {[
+        {
+          title: "1. Import",
+          body: "Use Shimeji import for PC or Android packs. Use Tomoji folder for backups.",
+        },
+        {
+          title: "2. Toggle",
+          body: "Turn cards on to spawn them. Turn off before heavy editing.",
+        },
+        {
+          title: "3. Tune",
+          body: "Open Edit to adjust size, speed, dialogue, and random behavior.",
+        },
+      ].map((item) => (
+        <div
+          key={item.title}
+          className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4"
+        >
+          <p className="text-sm font-bold text-white">{item.title}</p>
+          <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+            {item.body}
+          </p>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={onAdd}
+        className="rounded-2xl border border-dashed border-neutral-600 bg-neutral-950 p-4 text-left transition hover:border-white hover:bg-neutral-900 md:hidden"
+      >
+        <p className="text-sm font-bold text-white">Add first Tomoji</p>
+        <p className="mt-1 text-xs text-neutral-500">Import a character pack.</p>
+      </button>
+    </div>
+  );
+}
+
 export function TomojisView() {
   const {
     instances,
@@ -73,15 +113,35 @@ export function TomojisView() {
     unarchiveCompanion,
     reorderCompanions,
     refreshFromDisk,
+    isLoading,
   } = useCompanionInstances();
+  const { settings } = useAppSettings();
   const [flow, setFlow] = useState<TomojiFlow>("list");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [lastImportMessage, setLastImportMessage] = useState<string | null>(null);
   const editingInstance = instances.find((instance) => instance.id === editingId);
+  const filteredActiveInstances = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (query === "") {
+      return activeInstances;
+    }
+
+    return activeInstances.filter((instance) =>
+      `${instance.name} ${instance.characterId}`.toLowerCase().includes(query),
+    );
+  }, [activeInstances, searchTerm]);
 
   const handleImported = async (characterId: string) => {
     await addCompanion(characterId);
+    setLastImportMessage(`Imported ${characterId}. Toggle it on when ready.`);
     setFlow("list");
+  };
+
+  const handleDuplicate = async (characterId: string) => {
+    await addCompanion(characterId);
+    setLastImportMessage(`Duplicated ${characterId}.`);
   };
 
   const handleRefresh = async () => {
@@ -182,6 +242,7 @@ export function TomojisView() {
               setFlow("edit");
             }}
             onRestore={(id) => void unarchiveCompanion(id)}
+            confirmBeforeDelete={settings?.confirmBeforeDelete}
           />
         )}
       </TomojiPageLayout>
@@ -193,7 +254,7 @@ export function TomojisView() {
       header={
         <TomojiPageHeader
           title="Your Tomojis"
-          subtitle={companionCountLabel(activeInstances.length)}
+            subtitle={companionCountLabel(activeInstances.length)}
           trailing={
             <div className="flex items-center gap-2">
               <button
@@ -219,14 +280,39 @@ export function TomojisView() {
         />
       }
     >
-      <p className="mb-8 max-w-xl text-sm text-neutral-400">
-        Toggle companions on or off, edit behavior, or import new characters.
-        Drag cards to rearrange.
-      </p>
+      {settings?.showHelperTips !== false ? (
+        <>
+          <p className="mb-4 max-w-xl text-sm text-neutral-400">
+            Toggle companions on or off, edit behavior, or import new
+            characters. Drag cards to rearrange.
+          </p>
+          {!isLoading && activeInstances.length === 0 ? (
+            <TomojiQuickStart onAdd={() => setFlow("add")} />
+          ) : null}
+        </>
+      ) : null}
+
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <label className="min-w-0 flex-1 sm:max-w-xs">
+          <span className="sr-only">Search Tomojis</span>
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search Tomojis..."
+            className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white outline-none focus:border-white"
+          />
+        </label>
+        {lastImportMessage ? (
+          <p className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200">
+            {lastImportMessage}
+          </p>
+        ) : null}
+      </div>
 
       <TomojiGrid
-        instances={activeInstances}
-        reorderable
+        instances={filteredActiveInstances}
+        reorderable={searchTerm.trim() === ""}
         onReorder={(orderedIds) => void reorderCompanions(orderedIds)}
         onDelete={removeCompanion}
         onToggle={toggleCompanion}
@@ -234,9 +320,17 @@ export function TomojisView() {
           setEditingId(id);
           setFlow("edit");
         }}
+        onDuplicate={(characterId) => void handleDuplicate(characterId)}
         onArchive={(id) => void archiveCompanion(id)}
         onAdd={() => setFlow("add")}
+        confirmBeforeDelete={settings?.confirmBeforeDelete}
       />
+
+      {searchTerm.trim() !== "" && filteredActiveInstances.length === 0 ? (
+        <p className="mt-6 rounded-xl border border-dashed border-neutral-800 px-4 py-6 text-center text-sm text-neutral-500">
+          No Tomojis match “{searchTerm.trim()}”.
+        </p>
+      ) : null}
 
       {flow === "add" ? (
         <AddTomojiModal

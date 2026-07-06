@@ -31,3 +31,5 @@ docs/Structure.md
 # cursor rules and config (commit only if explicitly requested)
 .cursor/
 .cursorrules
+.codex-checkpoints
+AGENTS.md

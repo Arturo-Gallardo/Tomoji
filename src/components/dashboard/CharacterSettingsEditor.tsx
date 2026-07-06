@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useAppSettings } from "../../hooks/useAppSettings";
 import {
+  DEFAULT_BEHAVIOR_SETTINGS,
   normalizeBehaviorSettings,
   RANDOM_SIT_ACTIONS,
 } from "../../services/behaviorSettings";
@@ -7,6 +9,7 @@ import {
   getCharacter,
   isBuiltinCharacterId,
 } from "../../services/characterLibrary";
+import { openCharacterFolder } from "../../services/tomojiStorage";
 import { TomojiPageHeader } from "./TomojiPageHeader";
 import { TomojiPageLayout } from "./TomojiPageLayout";
 import type { BehaviorSettings, RandomSitAction } from "../../types/character";
@@ -64,6 +67,18 @@ const RANDOM_SIT_OPTIONS: readonly {
     description: "dangling sit slot",
   },
 ];
+
+const SCALE_PRESETS = [
+  { label: "Tiny", value: 0.75 },
+  { label: "Normal", value: 1 },
+  { label: "Big", value: 1.5 },
+] as const;
+
+const SPEED_PRESETS = [
+  { label: "Calm", value: 0.75 },
+  { label: "Normal", value: 1 },
+  { label: "Fast", value: 1.5 },
+] as const;
 
 interface AutonomySliderRowProps {
   label: string;
@@ -200,8 +215,9 @@ export function CharacterSettingsEditor({
   onEditFrames,
   onSave,
 }: CharacterSettingsEditorProps) {
+  const { settings } = useAppSettings();
   const isBuiltin = isBuiltinCharacterId(instance.characterId);
-  const [name, setName] = useState(instance.characterId);
+  const [name, setName] = useState(instance.name);
   const [scale, setScale] = useState(instance.scale);
   const [behavior, setBehavior] = useState(() =>
     normalizeBehaviorSettings({
@@ -239,6 +255,28 @@ export function CharacterSettingsEditor({
     floorWeights.walk + floorWeights.crawl + floorWeights.sit;
   const floorShare = (weight: number) =>
     floorWeightTotal > 0 ? percent(weight / floorWeightTotal) : "0%";
+  const hasUnsavedChanges =
+    name !== instance.name ||
+    scale !== instance.scale ||
+    JSON.stringify(behavior) !==
+      JSON.stringify(
+        normalizeBehaviorSettings({
+          ...instance.behaviorSettings,
+          dialogueFrequency: instance.dialogueSettings.frequency,
+        }),
+      ) ||
+    JSON.stringify(dialogue) !== JSON.stringify(instance.dialogueSettings);
+
+  const handleClose = () => {
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("Discard unsaved changes to this Tomoji?")
+    ) {
+      return;
+    }
+
+    onClose();
+  };
 
   const addLine = () => {
     const trimmed = lineDraft.trim();
@@ -278,6 +316,15 @@ export function CharacterSettingsEditor({
     setDialogue((current) => ({
       ...current,
       frequency,
+    }));
+  };
+
+  const resetBehavior = () => {
+    const defaultBehavior = normalizeBehaviorSettings(DEFAULT_BEHAVIOR_SETTINGS);
+    setBehavior(defaultBehavior);
+    setDialogue((current) => ({
+      ...current,
+      frequency: defaultBehavior.dialogueFrequency,
     }));
   };
 
@@ -327,9 +374,18 @@ export function CharacterSettingsEditor({
         },
       );
       setAvailableRandomSitActions(available);
-      setHasFloorCrawl(
-        (manifest?.animations.floorCrawl?.frames.length ?? 0) > 0,
-      );
+      if (manifest?.animationSystem === "shimejiGraph") {
+        const floorCrawlActionName =
+          manifest.shimejiGraph?.defaultActions.floorCrawl;
+        setHasFloorCrawl(
+          floorCrawlActionName
+            ? manifest.shimejiGraph?.actions[floorCrawlActionName] !== undefined
+            : false,
+        );
+        return;
+      }
+
+      setHasFloorCrawl((manifest?.animations.floorCrawl?.frames.length ?? 0) > 0);
     });
 
     return () => {
@@ -386,7 +442,7 @@ export function CharacterSettingsEditor({
       header={
         <TomojiPageHeader
           title={`Edit ${instance.name}`}
-          onBack={onClose}
+          onBack={handleClose}
         />
       }
       footer={
@@ -407,9 +463,19 @@ export function CharacterSettingsEditor({
     >
       <div className="grid gap-10 lg:grid-cols-2">
         <div className="space-y-6">
+          {settings?.showHelperTips !== false ? (
+            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3">
+              <p className="text-sm font-bold text-sky-100">Quick edit guide</p>
+              <p className="mt-1 text-xs leading-relaxed text-sky-100/70">
+                Start with size and movement speed, then tune autonomy. Save to
+                apply changes to running companions.
+              </p>
+            </div>
+          ) : null}
+
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-              Folder name
+              Tomoji name
             </span>
             <input
               type="text"
@@ -420,8 +486,8 @@ export function CharacterSettingsEditor({
             />
             <p className="mt-2 text-xs text-neutral-500">
               {isBuiltin
-                ? "Built-in folder name stays fixed so bundled updates keep working."
-                : "Matches the Tomoji folder on disk. Saving renames the folder (for example, Gojo becomes gojo)."}
+                ? "Built-in display name only. Bundled files stay fixed."
+                : "For imported Tomojis, saving a new name also renames the folder on disk."}
             </p>
           </label>
 
@@ -429,15 +495,30 @@ export function CharacterSettingsEditor({
             <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
               Scale: {scale.toFixed(2)}x
             </span>
-              <input
-                type="range"
-                min={0.5}
+            <input
+              type="range"
+              min={0.5}
               max={4}
-                step={0.05}
-                value={scale}
+              step={0.05}
+              value={scale}
               onChange={(event) => setScale(Number(event.target.value))}
               className="mt-2 w-full"
             />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SCALE_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setScale(preset.value)}
+                  className="rounded-full border border-neutral-700 px-3 py-1 text-xs font-bold text-neutral-300 hover:border-white hover:text-white"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-neutral-500">
+              Size changes the on-screen Tomoji window, not the source sprites.
+            </p>
           </label>
 
           {canEditFrames ? (
@@ -456,6 +537,13 @@ export function CharacterSettingsEditor({
               >
                 Edit frames
               </button>
+              <button
+                type="button"
+                onClick={() => void openCharacterFolder(instance.characterId)}
+                className="ml-3 mt-4 rounded-lg border border-neutral-700 px-4 py-2 text-sm font-bold text-neutral-300 hover:border-white hover:text-white"
+              >
+                Open folder
+              </button>
             </div>
           ) : null}
 
@@ -463,12 +551,12 @@ export function CharacterSettingsEditor({
             <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
               Movement speed: {behavior.movementSpeed.toFixed(2)}x
             </span>
-              <input
-                type="range"
-                min={0.1}
+            <input
+              type="range"
+              min={0.1}
               max={8}
-                step={0.1}
-                value={behavior.movementSpeed}
+              step={0.1}
+              value={behavior.movementSpeed}
               onChange={(event) =>
                 setBehavior((current) => ({
                   ...current,
@@ -477,15 +565,41 @@ export function CharacterSettingsEditor({
               }
               className="mt-2 w-full"
             />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SPEED_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() =>
+                    setBehavior((current) => ({
+                      ...current,
+                      movementSpeed: preset.value,
+                    }))
+                  }
+                  className="rounded-full border border-neutral-700 px-3 py-1 text-xs font-bold text-neutral-300 hover:border-white hover:text-white"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </label>
 
           <div className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/70">
-            <div className="border-b border-neutral-800 px-4 py-3">
-              <p className="text-sm font-bold text-white">Autonomy</p>
-              <p className="mt-1 text-xs text-neutral-500">
-                Pace decides when it acts. Mix decides what it picks when a
-                floor action starts.
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-800 px-4 py-3">
+              <div>
+                <p className="text-sm font-bold text-white">Autonomy</p>
+                <p className="mt-1 text-xs text-neutral-500">
+                  Pace decides when it acts. Mix decides what it picks when a
+                  floor action starts.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={resetBehavior}
+                className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-bold text-neutral-300 hover:border-white hover:text-white"
+              >
+                Reset behavior
+              </button>
             </div>
 
             <div className="divide-y divide-neutral-800">

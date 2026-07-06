@@ -41,7 +41,12 @@ import type {
 } from "../types/shimejiGraph";
 
 const DEFAULT_FRAME_SIZE = 128;
+// android packs use large padded mobile canvases; normalize runtime sprites
+// so imported pets start near the same desktop size as classic shimejis.
 const ANDROID_TARGET_VISIBLE_HEIGHT = 120;
+// xml anchors are author data, but some packs put the anchor at the padded
+// canvas bottom. clamp only when the gap is obvious.
+const VISIBLE_ANCHOR_BOTTOM_CLAMP_THRESHOLD = 30;
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "bmp"]);
 
 const ACTION_FILE_NAMES = ["actions.xml", "動作.xml"] as const;
@@ -118,6 +123,13 @@ interface ParsedAction {
   references: string[];
 }
 
+interface VisibleFrameBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface AndroidManifest {
   name?: string;
   animationSchema?: {
@@ -125,9 +137,6 @@ interface AndroidManifest {
   };
   sprites?: {
     basePath?: string;
-    filePattern?: string;
-    spriteCount?: number;
-    size?: [number, number];
   };
 }
 
@@ -142,7 +151,6 @@ interface AndroidAnimation {
   key: string;
   type?: string;
   subtype?: string;
-  loop?: string;
   direction?: string;
   frames: AndroidAnimationFrame[];
 }
@@ -304,17 +312,6 @@ async function configRootFromXmlFile(path: string): Promise<string> {
   return root;
 }
 
-async function firstExistingDir(dir: string, names: readonly string[]): Promise<string | null> {
-  for (const name of names) {
-    const path = await joinPath(dir, name);
-    if (await safePathExists(path)) {
-      return path;
-    }
-  }
-
-  return null;
-}
-
 async function findAndroidRoot(inputDir: string): Promise<string | null> {
   const candidates = [inputDir];
   const basename = (await getBasename(inputDir)).toLowerCase();
@@ -329,13 +326,7 @@ async function findAndroidRoot(inputDir: string): Promise<string | null> {
 
   for (const dir of candidates) {
     const manifestPath = await joinPath(dir, "manifest.json");
-    const animationPath = await joinPath(dir, "animation.json");
-    const spritesDir = await joinPath(dir, "sprites");
-    if (
-      (await safePathExists(manifestPath)) &&
-      (await safePathExists(animationPath)) &&
-      (await safePathExists(spritesDir))
-    ) {
+    if (await safePathExists(manifestPath)) {
       return dir;
     }
   }
@@ -351,15 +342,21 @@ async function findAndroidPackage(inputDir: string): Promise<ShimejiPackage | nu
 
   const manifest = await readJson<AndroidManifest>(await joinPath(rootDir, "manifest.json"));
   const defaultSpriteDir = await joinPath(rootDir, "sprites");
-  const spriteDir =
-    manifest.sprites?.basePath
-      ? await joinPath(rootDir, manifest.sprites.basePath)
-      : (await firstExistingDir(rootDir, ["sprites"])) ?? defaultSpriteDir;
+  const spriteDir = manifest.sprites?.basePath
+    ? await joinPath(rootDir, manifest.sprites.basePath)
+    : defaultSpriteDir;
   const preferredAnimationPath = await joinPath(
     rootDir,
     manifest.animationSchema?.path ?? "animation.json",
   );
   const fallbackAnimationPath = await joinPath(rootDir, "animation.json");
+  const animationPath = await safePathExists(preferredAnimationPath)
+    ? preferredAnimationPath
+    : fallbackAnimationPath;
+  if (!(await safePathExists(animationPath))) {
+    return null;
+  }
+
   const sources = await listImageFramesRecursive(spriteDir);
   if (sources.length === 0) {
     return null;
@@ -369,9 +366,7 @@ async function findAndroidPackage(inputDir: string): Promise<ShimejiPackage | nu
     format: "android",
     rootDir,
     spriteDir,
-    actionsXmlPath: await safePathExists(preferredAnimationPath)
-      ? preferredAnimationPath
-      : fallbackAnimationPath,
+    actionsXmlPath: animationPath,
     behaviorsXmlPath: null,
     sources,
     displayName: manifest.name,
@@ -570,6 +565,7 @@ async function parseActions(
   }
 
   const sourceByName = sourceByBasename(shimeji.sources);
+  const visibleBoundsByPath = new Map<string, VisibleFrameBounds>();
   const actions = new Map<string, ParsedAction>();
 
   for (const node of elementsByNames(document, ["Action", "動作"])) {
@@ -591,15 +587,21 @@ async function parseActions(
         continue;
       }
 
+      const xmlImageAnchor = parsePoint(attr(poseNode, ["ImageAnchor", "基準座標"]), {
+        x: DEFAULT_FRAME_SIZE / 2,
+        y: DEFAULT_FRAME_SIZE,
+      });
+
       poses.push({
         image,
         sourcePath,
         durationTicks: parseDurationTicks(attr(poseNode, ["Duration", "長さ"])),
         velocity: parsePoint(attr(poseNode, ["Velocity", "移動速度"]), { x: 0, y: 0 }),
-        imageAnchor: parsePoint(attr(poseNode, ["ImageAnchor", "基準座標"]), {
-          x: DEFAULT_FRAME_SIZE / 2,
-          y: DEFAULT_FRAME_SIZE,
-        }),
+        imageAnchor: await clampAnchorToVisibleBottom(
+          sourcePath,
+          xmlImageAnchor,
+          visibleBoundsByPath,
+        ),
       });
     }
 
@@ -962,7 +964,10 @@ async function writeNormalizedFrame(
       throw new Error("2d canvas context unavailable");
     }
 
-    context.imageSmoothingEnabled = false;
+    context.imageSmoothingEnabled = renderScale < 1;
+    if (renderScale < 1) {
+      context.imageSmoothingQuality = "high";
+    }
     context.clearRect(0, 0, width, height);
     const adjustedAnchor = {
       x: (imageAnchor.x - bounds.x) * renderScale,
@@ -1145,17 +1150,46 @@ function averageAndroidWalkSpeed(
   return velocities.reduce((total, velocity) => total + velocity, 0) / velocities.length;
 }
 
-async function sourceVisibleAnchor(sourcePath: string): Promise<ShimejiPoint> {
+async function sourceVisibleBounds(sourcePath: string): Promise<VisibleFrameBounds> {
   const bitmap = await loadImageBitmap(sourcePath);
   try {
-    const bounds = bitmapContentBounds(bitmap);
-    return {
-      x: bounds.x + bounds.width / 2,
-      y: bounds.y + bounds.height,
-    };
+    return bitmapContentBounds(bitmap);
   } finally {
     bitmap.close();
   }
+}
+
+async function sourceVisibleAnchor(sourcePath: string): Promise<ShimejiPoint> {
+  const bounds = await sourceVisibleBounds(sourcePath);
+  return {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height,
+  };
+}
+
+async function clampAnchorToVisibleBottom(
+  sourcePath: string,
+  imageAnchor: ShimejiPoint,
+  visibleBoundsByPath: Map<string, VisibleFrameBounds>,
+): Promise<ShimejiPoint> {
+  if (!visibleBoundsByPath.has(sourcePath)) {
+    visibleBoundsByPath.set(sourcePath, await sourceVisibleBounds(sourcePath));
+  }
+
+  const bounds = visibleBoundsByPath.get(sourcePath);
+  if (!bounds) {
+    return imageAnchor;
+  }
+
+  const visibleBottom = bounds.y + bounds.height;
+  if (imageAnchor.y <= visibleBottom + VISIBLE_ANCHOR_BOTTOM_CLAMP_THRESHOLD) {
+    return imageAnchor;
+  }
+
+  return {
+    x: imageAnchor.x,
+    y: visibleBottom,
+  };
 }
 
 async function buildAndroidParsedActions(

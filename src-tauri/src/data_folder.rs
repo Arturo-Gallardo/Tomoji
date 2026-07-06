@@ -155,3 +155,19 @@ pub fn open_characters_folder(app: AppHandle) -> Result<(), String> {
 
     open_in_file_manager(&characters_dir)
 }
+
+#[tauri::command]
+pub fn open_character_folder(app: AppHandle, character_id: String) -> Result<(), String> {
+    let character_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("failed to resolve app data dir: {error}"))?
+        .join("characters")
+        .join(character_id);
+
+    if !character_dir.exists() {
+        return Err("character folder does not exist".to_string());
+    }
+
+    open_in_file_manager(&character_dir)
+}

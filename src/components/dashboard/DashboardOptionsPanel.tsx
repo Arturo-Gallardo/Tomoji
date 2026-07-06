@@ -16,6 +16,26 @@ const BLOCKED_COMPANION_COMMAND_STATES = new Set([
   "climbing",
 ]);
 
+function commandHint(
+  isCommandBlocked: boolean,
+  isMuted: boolean,
+  canDialogue: boolean,
+): string {
+  if (isCommandBlocked) {
+    return "Some commands pause while the Tomoji is falling, dragging, or climbing.";
+  }
+
+  if (isMuted) {
+    return "Muted Tomojis will not speak until unmuted.";
+  }
+
+  if (!canDialogue) {
+    return "Add dialogue lines in Edit to enable manual speech.";
+  }
+
+  return "Use these for quick control without opening the card menu.";
+}
+
 interface DashboardOptionsPanelProps {
   instance: CompanionInstance;
 }
@@ -65,15 +85,22 @@ export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) 
   const handleMuteClick = () => {
     void updateInstance(instance.id, { muted: !isMuted });
   };
+  const hint = commandHint(isCommandBlocked, isMuted, canDialogue);
 
   return (
     <section className="flex h-full min-h-0 items-center justify-center p-8">
       <div className="flex h-full w-full max-w-sm flex-col rounded-lg border-2 border-neutral-600/80 p-6">
+        <div className="mb-5">
+          <p className="text-sm font-bold text-white">{instance.name}</p>
+          <p className="mt-1 text-xs leading-relaxed text-neutral-500">{hint}</p>
+        </div>
+
         <div className="flex flex-1 flex-col justify-evenly gap-4">
           <button
             type="button"
             onClick={handleDialogueClick}
             disabled={!canDialogue}
+            title={!canDialogue ? hint : "Make this Tomoji say a line now"}
             className="flex flex-1 items-center justify-center rounded-md border-2 border-neutral-600/70 text-lg text-neutral-200 enabled:hover:border-neutral-400/80 enabled:hover:text-white disabled:cursor-default disabled:opacity-50"
           >
             Dialogue
@@ -83,6 +110,7 @@ export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) 
             type="button"
             onClick={handleSitClick}
             disabled={!canToggleSit}
+            title={!canToggleSit ? hint : isSitting ? "Stand up" : "Sit down"}
             className={`flex flex-1 items-center justify-center rounded-md border-2 text-lg text-neutral-200 enabled:hover:border-neutral-400/80 enabled:hover:text-white disabled:cursor-default disabled:opacity-50 ${
               isSitting
                 ? "border-neutral-400/90 text-white"

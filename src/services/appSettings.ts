@@ -20,6 +20,10 @@ export function normalizeAppSettings(
     restoreCompanionsOnLaunch:
       settings?.restoreCompanionsOnLaunch ??
       DEFAULT_APP_SETTINGS.restoreCompanionsOnLaunch,
+    confirmBeforeDelete:
+      settings?.confirmBeforeDelete ?? DEFAULT_APP_SETTINGS.confirmBeforeDelete,
+    showHelperTips:
+      settings?.showHelperTips ?? DEFAULT_APP_SETTINGS.showHelperTips,
   };
 }
 

@@ -13,6 +13,8 @@ import {
   type ShimejiImportFormat,
   type ShimejiGraphImportScan,
 } from "../../services/shimejiGraphImporter";
+import { toAssetUrl } from "../../services/fs/fileSystemAdapter";
+import { FittedTomojiSprite } from "../dashboard/FittedTomojiSprite";
 
 interface ShimejiFolderImportScreenProps {
   onClose: () => void;
@@ -88,6 +90,61 @@ function FolderTreeExample({ format }: { format: ShimejiImportFormat }) {
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+function importErrorHelp(format: ShimejiImportFormat): string {
+  return format === "android"
+    ? "For Android, choose the folder with manifest.json, animation.json, and sprites/."
+    : "For PC, choose the folder with conf/actions.xml and img/, or manually pick the XML files.";
+}
+
+function draftPreviewSource(draft: ShimejiGraphDraft): string | null {
+  const actionName =
+    draft.graph.defaultActions.idle ??
+    draft.graph.defaultActions.walk ??
+    Object.keys(draft.graph.actions)[0];
+  const pose = actionName ? draft.graph.actions[actionName]?.poses[0] : undefined;
+  return pose?.source ?? null;
+}
+
+function ImportPreview({ draft }: { draft: ShimejiGraphDraft }) {
+  const previewSource = draftPreviewSource(draft);
+
+  return (
+    <div className="mt-4 rounded-xl border border-neutral-800 bg-black/20 p-4">
+      <p className="text-sm font-bold text-white">Preview</p>
+      <div className="mt-3 flex items-center gap-4">
+        <div className="flex h-28 w-28 items-end justify-center rounded-xl bg-neutral-950">
+          {previewSource ? (
+            <FittedTomojiSprite
+              frameSrc={toAssetUrl(previewSource)}
+              facing="left"
+              action="idle"
+              targetHeight={82}
+              maxWidth={96}
+            />
+          ) : (
+            <span className="text-xs text-neutral-600">No preview</span>
+          )}
+        </div>
+        <div className="min-w-0 text-xs text-neutral-400">
+          <p>
+            Runtime canvas: {draft.graph.spriteCanvas.width}x
+            {draft.graph.spriteCanvas.height}
+          </p>
+          <p className="mt-1">
+            Imported: {draft.graph.importReport.actionsParsed} actions,{" "}
+            {draft.graph.importReport.posesParsed} poses
+          </p>
+          {draft.runtimeSpriteScale && draft.runtimeSpriteScale < 1 ? (
+            <p className="mt-1 text-emerald-300">
+              Android sprites normalized to desktop size.
+            </p>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -405,6 +462,7 @@ export function ShimejiFolderImportScreen({
                     .join(", ")}
                 </p>
               ) : null}
+              <ImportPreview draft={draft} />
               {draft.graph.importReport.issues.length > 0 ? (
                 <ul className="mt-3 space-y-1 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
                   {draft.graph.importReport.issues.map((issue) => (
@@ -424,9 +482,12 @@ export function ShimejiFolderImportScreen({
           ) : null}
 
           {error ? (
-            <p className="rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {error}
-            </p>
+            <div className="rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <p>{error}</p>
+              <p className="mt-2 text-xs text-red-200/80">
+                {importErrorHelp(importFormat)}
+              </p>
+            </div>
           ) : null}
         </div>
 

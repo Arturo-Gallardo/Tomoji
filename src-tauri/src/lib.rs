@@ -13,7 +13,9 @@ use companion::{
     set_companion_speech_size, set_companion_window_size, show_companion_menu,
     show_companion_speech, show_walk_picker, submit_target_picker, take_companion_speech_content,
 };
-use data_folder::{get_characters_folder_fingerprint, open_characters_folder};
+use data_folder::{
+    get_characters_folder_fingerprint, open_character_folder, open_characters_folder,
+};
 use main_window::{configure_main_window, handle_window_event};
 use tray::create_tray;
 
@@ -70,6 +72,7 @@ pub fn run() {
             submit_target_picker,
             cancel_walk_picker,
             get_characters_folder_fingerprint,
+            open_character_folder,
             open_characters_folder,
         ])
         .build(tauri::generate_context!())

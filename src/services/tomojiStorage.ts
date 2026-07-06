@@ -11,6 +11,11 @@ export async function openCharactersFolder(): Promise<void> {
   await invoke("open_characters_folder");
 }
 
+export async function openCharacterFolder(characterId: string): Promise<void> {
+  await ensureBuiltinCharacterStored();
+  await invoke("open_character_folder", { characterId });
+}
+
 // rescans character folders on disk, updates library.json, then repairs cards
 export async function refreshTomojisFromDisk(): Promise<CharacterSyncResult> {
   await reconcileTomojiRegistry({ spawnNew: true });

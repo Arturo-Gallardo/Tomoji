@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCharacterAnimationRegistry } from "../../hooks/useCharacterAnimationRegistry";
 import type { AnimationRegistry } from "../../services/animationRegistry";
 import { isBuiltinCharacterId } from "../../services/characterLibrary";
@@ -20,8 +20,10 @@ interface TomojiCardProps {
   onDelete: (id: string) => void;
   onToggle: (id: string, enabled: boolean) => void;
   onEdit: (id: string) => void;
+  onDuplicate?: (characterId: string) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
+  confirmBeforeDelete?: boolean;
 }
 
 interface TomojiCardSpriteProps {
@@ -70,22 +72,39 @@ export function TomojiCard({
   onDelete,
   onToggle,
   onEdit,
+  onDuplicate,
   onArchive,
   onRestore,
+  confirmBeforeDelete = true,
 }: TomojiCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const isBuiltin = isBuiltinCharacterId(instance.characterId);
   const canDelete = !isBuiltin;
   const canArchive = onArchive !== undefined;
   const isArchived = instance.archived === true;
 
   const handleDelete = () => {
+    if (
+      confirmBeforeDelete &&
+      !window.confirm(
+        `Delete ${instance.name}? If this is the last copy, its imported files will be removed too.`,
+      )
+    ) {
+      return;
+    }
+
     onDelete(instance.id);
     setIsMenuOpen(false);
   };
 
   const handleEdit = () => {
     onEdit(instance.id);
+    setIsMenuOpen(false);
+  };
+
+  const handleDuplicate = () => {
+    onDuplicate?.(instance.characterId);
     setIsMenuOpen(false);
   };
 
@@ -98,6 +117,35 @@ export function TomojiCard({
     onRestore?.(instance.id);
     setIsMenuOpen(false);
   };
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        menuRef.current !== null &&
+        !menuRef.current.contains(target)
+      ) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMenuOpen]);
 
   return (
     <article
@@ -163,6 +211,7 @@ export function TomojiCard({
           ) : null}
           <button
             type="button"
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={() => setIsMenuOpen((current) => !current)}
             className="rounded-full px-1.5 pb-1 text-lg leading-none text-white hover:bg-neutral-800"
             aria-expanded={isMenuOpen}
@@ -182,7 +231,11 @@ export function TomojiCard({
       </p>
 
       {isMenuOpen ? (
-        <div className="absolute right-2 top-9 z-10 w-36 rounded-lg border border-neutral-700 bg-neutral-950 p-1 shadow-xl">
+        <div
+          ref={menuRef}
+          onPointerDown={(event) => event.stopPropagation()}
+          className="absolute right-2 top-9 z-10 w-36 rounded-lg border border-neutral-700 bg-neutral-950 p-1 shadow-xl"
+        >
           <button
             type="button"
             onClick={handleEdit}
@@ -190,6 +243,15 @@ export function TomojiCard({
           >
             Edit
           </button>
+          {onDuplicate ? (
+            <button
+              type="button"
+              onClick={handleDuplicate}
+              className="w-full rounded-md px-3 py-2 text-left text-xs font-bold text-neutral-200 hover:bg-neutral-800"
+            >
+              Duplicate
+            </button>
+          ) : null}
           {canArchive ? (
             <button
               type="button"
