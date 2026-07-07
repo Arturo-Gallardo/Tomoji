@@ -33,10 +33,15 @@ const MAX_IDLE_MS = 8000;
 const MIN_WALK_DISTANCE = 80;
 const SNAP_HOVER_DURATION_MS = 500;
 const MOVEMENT_SPEED_SCALE = 2;
+const AUTO_SCREEN_WALL_WEIGHT_RATIO = 0.2;
+const WALL_TO_CEILING_WEIGHT_RATIO = 0.15;
+const WALL_TO_GROUND_WEIGHT_RATIO = 0.15;
+const CEILING_TO_GROUND_WEIGHT_RATIO = 0.1;
 
 const MIN_AUTONOMOUS_SIT_MS = 20000;
 const MAX_AUTONOMOUS_SIT_MS = 55000;
 type SittingMode = "manual" | "auto" | null;
+type ClimbFinishMode = "idle" | "ceiling" | "ground";
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -203,6 +208,7 @@ export function useCompanionBehavior({
   const dialogueReturnStateRef = useRef<"idle" | "sitting">("idle");
   const sittingModeRef = useRef<SittingMode>(null);
   const sittingActionRef = useRef<CompanionAction>("sit");
+  const climbFinishModeRef = useRef<ClimbFinishMode>("idle");
   const isMutedRef = useRef(isMuted);
 
   const isWallLockedRef = useRef(isWallLocked);
@@ -288,6 +294,7 @@ export function useCompanionBehavior({
   const returnToIdle = useCallback(() => {
     targetXRef.current = null;
     targetYRef.current = null;
+    climbFinishModeRef.current = "idle";
     isDraggingRef.current = false;
     sittingModeRef.current = null;
     setSkipResistOnGrab(false);
@@ -776,14 +783,28 @@ export function useCompanionBehavior({
     setAction("climbCeiling");
   }, []);
 
-  const startClimbingTo = useCallback((targetY: number) => {
-    const currentY = anchorYRef.current;
+  const startClimbingTo = useCallback(
+    (targetY: number, finishMode: ClimbFinishMode = "idle") => {
+      const currentY = anchorYRef.current;
 
+      targetXRef.current = null;
+      targetYRef.current = targetY;
+      climbFinishModeRef.current = finishMode;
+      setBehaviorState("climbing");
+      setAction(targetY < currentY ? "climbWall" : "climbWallDown");
+    },
+    [],
+  );
+
+  const dropFromCeiling = useCallback(() => {
     targetXRef.current = null;
-    targetYRef.current = targetY;
-    setBehaviorState("climbing");
-    setAction(targetY < currentY ? "climbWall" : "climbWallDown");
-  }, []);
+    targetYRef.current = null;
+    climbFinishModeRef.current = "idle";
+    releaseSurfaceLockForDrag();
+    setFallVelocity({ x: 0, y: 2 });
+    setBehaviorState("falling");
+    setAction("fall");
+  }, [releaseSurfaceLockForDrag]);
 
   const toggleFreeze = useCallback(() => {
     setIsFrozen((current) => !current);
@@ -965,6 +986,26 @@ export function useCompanionBehavior({
     return nextTarget;
   }, [clampAnchorX, getHorizontalWalkRange]);
 
+  const pickScreenWallTarget = useCallback(() => {
+    const range = getHorizontalWalkRange();
+    if (!range) {
+      return null;
+    }
+
+    const firstChoice = Math.random() < 0.5 ? range.minX : range.maxX;
+    const fallback = firstChoice === range.minX ? range.maxX : range.minX;
+    const target =
+      Math.abs(firstChoice - anchorXRef.current) >= MIN_WALK_DISTANCE
+        ? firstChoice
+        : fallback;
+
+    if (Math.abs(target - anchorXRef.current) < MIN_WALK_DISTANCE) {
+      return null;
+    }
+
+    return clampAnchorX(target);
+  }, [clampAnchorX, getHorizontalWalkRange]);
+
   useEffect(() => {
     if (
       !isReady ||
@@ -975,11 +1016,13 @@ export function useCompanionBehavior({
       (!behaviorSettingsRef.current.allowRandomWalk &&
         (!behaviorSettingsRef.current.allowRandomFloorCrawl ||
           !registry.canFloorCrawl) &&
-        !behaviorSettingsRef.current.allowRandomSit) ||
+        !behaviorSettingsRef.current.allowRandomSit &&
+        !behaviorSettingsRef.current.allowRandomWallClimb) ||
       behaviorSettingsRef.current.actionFrequency <= 0 ||
       (!behaviorSettingsRef.current.walkFrequency &&
         !behaviorSettingsRef.current.floorCrawlFrequency &&
-        !behaviorSettingsRef.current.sitFrequency)
+        !behaviorSettingsRef.current.sitFrequency &&
+        !behaviorSettingsRef.current.wallClimbFrequency)
     ) {
       return;
     }
@@ -993,6 +1036,10 @@ export function useCompanionBehavior({
 
       const canSit = behaviorSettingsRef.current.allowRandomSit;
       const canWalk = behaviorSettingsRef.current.allowRandomWalk;
+      const canAutoScreenWall =
+        canWalk &&
+        behaviorSettingsRef.current.allowRandomWallClimb &&
+        behaviorSettingsRef.current.wallClimbFrequency > 0;
       const canFloorCrawl =
         behaviorSettingsRef.current.allowRandomFloorCrawl &&
         registry.canFloorCrawl;
@@ -1001,6 +1048,7 @@ export function useCompanionBehavior({
       );
       const crawlTarget = canFloorCrawl ? pickWalkTarget() : null;
       const walkTarget = canWalk ? pickWalkTarget() : null;
+      const wallTarget = canAutoScreenWall ? pickScreenWallTarget() : null;
       const nextAction = pickWeightedAction([
         {
           value: "floorCrawl" as const,
@@ -1021,6 +1069,14 @@ export function useCompanionBehavior({
             ? 0
             : behaviorSettingsRef.current.walkFrequency,
         },
+        {
+          value: "screenWall" as const,
+          weight: wallTarget === null
+            ? 0
+            : behaviorSettingsRef.current.walkFrequency *
+              behaviorSettingsRef.current.wallClimbFrequency *
+              AUTO_SCREEN_WALL_WEIGHT_RATIO,
+        },
       ]);
 
       if (nextAction === "floorCrawl" && crawlTarget !== null) {
@@ -1035,6 +1091,11 @@ export function useCompanionBehavior({
 
       if (nextAction === "walk" && walkTarget !== null) {
         startWalkingTo(walkTarget, false);
+        return;
+      }
+
+      if (nextAction === "screenWall" && wallTarget !== null) {
+        startWalkingTo(wallTarget, true);
       }
     }, randomIdleDelay(actionFrequency));
 
@@ -1047,6 +1108,7 @@ export function useCompanionBehavior({
     isReady,
     isUndersideLocked,
     isWallLocked,
+    pickScreenWallTarget,
     pickWalkTarget,
     registry,
     startFloorCrawlingTo,
@@ -1083,6 +1145,30 @@ export function useCompanionBehavior({
         return;
       }
 
+      const canUseScreenTransitions =
+        surfaceLock !== null && isScreenEdgeHwnd(surfaceLock.hwnd);
+      const nextAction = pickWeightedAction([
+        { value: "climb" as const, weight: 1 },
+        {
+          value: "ceiling" as const,
+          weight: canUseScreenTransitions ? WALL_TO_CEILING_WEIGHT_RATIO : 0,
+        },
+        {
+          value: "ground" as const,
+          weight: canUseScreenTransitions ? WALL_TO_GROUND_WEIGHT_RATIO : 0,
+        },
+      ]);
+
+      if (nextAction === "ceiling") {
+        startClimbingTo(range.minY, "ceiling");
+        return;
+      }
+
+      if (nextAction === "ground") {
+        startClimbingTo(range.maxY, "ground");
+        return;
+      }
+
       let nextTarget = randomBetween(range.minY, range.maxY);
 
       if (Math.abs(nextTarget - anchorYRef.current) < 48) {
@@ -1108,6 +1194,7 @@ export function useCompanionBehavior({
     isWallLocked,
     normalizedBehaviorSettings,
     startClimbingTo,
+    surfaceLock,
   ]);
 
   // window bottom crawl — horizontal autonomous moves
@@ -1137,6 +1224,22 @@ export function useCompanionBehavior({
         return;
       }
 
+      const nextAction = pickWeightedAction([
+        { value: "crawl" as const, weight: 1 },
+        {
+          value: "ground" as const,
+          weight:
+            surfaceLock !== null && isScreenEdgeHwnd(surfaceLock.hwnd)
+              ? CEILING_TO_GROUND_WEIGHT_RATIO
+              : 0,
+        },
+      ]);
+
+      if (nextAction === "ground") {
+        dropFromCeiling();
+        return;
+      }
+
       const target = pickWalkTarget();
       if (target === null) {
         return;
@@ -1150,12 +1253,14 @@ export function useCompanionBehavior({
     };
   }, [
     behaviorState,
+    dropFromCeiling,
     isFrozen,
     isReady,
     isUndersideLocked,
     normalizedBehaviorSettings,
     pickWalkTarget,
     startCrawlingTo,
+    surfaceLock,
   ]);
 
   // auto sit eventually stands back up; manual sit stays until the user toggles it
@@ -1204,12 +1309,40 @@ export function useCompanionBehavior({
   const finishClimbing = useCallback(
     async (targetY: number) => {
       targetYRef.current = null;
+      const finishMode = climbFinishModeRef.current;
+      climbFinishModeRef.current = "idle";
       const current = getAnchorPosition();
+
+      if (finishMode === "ceiling") {
+        const locked = await tryLockSurfaceAt(current.x, targetY);
+        if (locked?.kind === "underside") {
+          await setAnchorPosition({ x: current.x, y: targetY }, "locked");
+          setBehaviorState("idle");
+          setAction("idle");
+          return;
+        }
+      }
+
+      if (finishMode === "ground") {
+        releaseSurfaceLockForDrag();
+        const floorY = getFloorYAt(current.x, current.y);
+        await setAnchorPosition({ x: current.x, y: floorY }, "grounded");
+        startBounce();
+        return;
+      }
+
       await setAnchorPosition({ x: current.x, y: targetY }, "locked");
       setBehaviorState("idle");
       setAction("idle");
     },
-    [getAnchorPosition, setAnchorPosition],
+    [
+      getAnchorPosition,
+      getFloorYAt,
+      releaseSurfaceLockForDrag,
+      setAnchorPosition,
+      startBounce,
+      tryLockSurfaceAt,
+    ],
   );
 
   const finishWalking = useCallback(

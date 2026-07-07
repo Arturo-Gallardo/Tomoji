@@ -2,6 +2,7 @@ import { SPRITE_ANCHOR, SPRITE_HEIGHT } from "../animations/companionGeometry";
 import type {
   DesktopBounds,
   MonitorWorkArea,
+  WindowBottomHit,
   WindowSurface,
   WindowWallHit,
   WindowWallSide,
@@ -11,7 +12,10 @@ import { findMonitorAt, findMonitorByX } from "./monitorBounds";
 // matches window wall tolerances in rust, extended so floor-walk clamp positions still snap
 const WALL_HIT_TOLERANCE_X = Math.max(36, SPRITE_ANCHOR.x + 8);
 const WALL_HIT_TOLERANCE_Y = 32;
+const CEILING_HIT_TOLERANCE_Y = SPRITE_HEIGHT + 32;
 const MIN_WALL_CLIMB_HEIGHT = 160;
+const MIN_CEILING_CRAWL_WIDTH = 160;
+const SCREEN_EDGE_CEILING_DEPTH = 8;
 
 // hwnd 0 — screen edges aren't tied to a window
 export const SCREEN_EDGE_HWND = 0;
@@ -76,6 +80,41 @@ function wallHitFromMonitor(
   };
 }
 
+function pointHitsTopEdge(
+  monitor: MonitorWorkArea,
+  x: number,
+  y: number,
+): boolean {
+  if (monitor.width < MIN_CEILING_CRAWL_WIDTH) {
+    return false;
+  }
+
+  const left = monitor.x;
+  const right = monitor.x + monitor.width;
+  const top = monitor.y;
+  const xRounded = Math.round(x);
+  const yRounded = Math.round(y);
+
+  const onX =
+    xRounded >= left - WALL_HIT_TOLERANCE_X &&
+    xRounded <= right + WALL_HIT_TOLERANCE_X;
+  const onY =
+    yRounded >= top - WALL_HIT_TOLERANCE_Y &&
+    yRounded <= top + CEILING_HIT_TOLERANCE_Y;
+
+  return onX && onY;
+}
+
+function ceilingHitFromMonitor(monitor: MonitorWorkArea): WindowBottomHit {
+  return {
+    hwnd: SCREEN_EDGE_HWND,
+    left: monitor.x,
+    right: monitor.x + monitor.width,
+    top: monitor.y,
+    bottom: monitor.y + SCREEN_EDGE_CEILING_DEPTH,
+  };
+}
+
 export function hitScreenEdgeWallAt(
   x: number,
   y: number,
@@ -109,6 +148,19 @@ export function hitScreenEdgeWallAt(
   return null;
 }
 
+export function hitScreenEdgeCeilingAt(
+  x: number,
+  y: number,
+  bounds: DesktopBounds,
+): WindowBottomHit | null {
+  const monitor = monitorForWallHit(x, y, bounds.monitors);
+  if (!monitor || !pointHitsTopEdge(monitor, x, y)) {
+    return null;
+  }
+
+  return ceilingHitFromMonitor(monitor);
+}
+
 export function screenEdgeSurfaceFromMonitor(
   monitor: MonitorWorkArea,
 ): WindowSurface {
@@ -132,5 +184,18 @@ export function screenEdgeSurfaceFromWallHit(
     top: wall.top,
     bottom: wall.bottom,
     titleBarBottom: wall.top + 32,
+  };
+}
+
+export function screenEdgeSurfaceFromCeilingHit(
+  ceiling: WindowBottomHit,
+): WindowSurface {
+  return {
+    hwnd: ceiling.hwnd,
+    left: ceiling.left,
+    right: ceiling.right,
+    top: ceiling.top,
+    bottom: ceiling.bottom,
+    titleBarBottom: ceiling.top + 32,
   };
 }

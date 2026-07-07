@@ -19,8 +19,10 @@ import {
   getRightmostMonitorFloorStart,
 } from "../utils/monitorBounds";
 import {
+  hitScreenEdgeCeilingAt,
   hitScreenEdgeWallAt,
   isScreenEdgeHwnd,
+  screenEdgeSurfaceFromCeilingHit,
   screenEdgeSurfaceFromWallHit,
 } from "../utils/screenEdgeWalls";
 import {
@@ -409,6 +411,14 @@ export function useCompanionMovement(
 
         const bounds = desktopBoundsRef.current;
         if (bounds) {
+          const screenCeiling = hitScreenEdgeCeilingAt(x, y, bounds);
+          if (screenCeiling) {
+            return {
+              lock: { hwnd: screenCeiling.hwnd, kind: "underside" },
+              surface: screenEdgeSurfaceFromCeilingHit(screenCeiling),
+            };
+          }
+
           const screenEdge = hitScreenEdgeWallAt(x, y, bounds);
           if (screenEdge) {
             return {
