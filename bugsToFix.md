@@ -1,13 +1,27 @@
-- (GOOD ENOUGH FIX) sit animations are wrong when on top a window, need to find a rework
+- should still be able to be picked up even when getting up
 
-- (GOOD ENOUGH) dangling logic isnt there right now
+add auto getting on walls and ceiling of screen
 
-- scale isnt working properly, when refreshing and changing the scale though the frame is huge still even with the small sprite
+redo ui - tamagotchi style
 
-editing is a bit weird
+add stripe
 
-- (EDGE CASE) green is getting a really weird tall frame, probably due to one sprite being super tall
+add database
 
-- bad logic with gray bg,
+add auth
 
-- offset on climbing walls still to far as well as when crawling on ceiling
+add backend / supabase edge functions
+
+add stripe webhook
+
+polish / remove friction / make sure everything works
+
+final testing
+
+set up domain
+
+make logo / promotional pictures
+
+make landing page
+
+prepare for release
