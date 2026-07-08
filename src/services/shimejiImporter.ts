@@ -3,6 +3,7 @@ import {
   type AnimationCategory,
   type AnimationDefinition,
   type CharacterManifest,
+  type CharacterSource,
 } from "../types/character";
 import type { ShimejiDraft, ShimejiSourceFrame } from "../types/shimejiDraft";
 import { getMaxImageSize } from "../utils/frameGeometry";
@@ -113,8 +114,10 @@ export interface ShimejiImportScan {
   messages: string[];
 }
 
-export async function pickShimejiImgFolder(): Promise<string | null> {
-  return pickDirectory("Select the Shimeji img sprite folder");
+export async function pickShimejiImgFolder(
+  title = "Select a sprite folder",
+): Promise<string | null> {
+  return pickDirectory(title);
 }
 
 export async function pickShimejiFolder(): Promise<string | null> {
@@ -1492,23 +1495,30 @@ export async function saveCharacterDraft(
 // editable originals in characters/<id>/source, and writes a valid manifest.json.
 export async function convertShimejiDraft(
   draft: ShimejiDraft,
+  options: {
+    source?: Extract<CharacterSource, "shimeji" | "tomoji">;
+  } = {},
 ): Promise<string> {
-  const name = draft.name.trim() || "Imported Shimeji";
+  const source = options.source ?? "shimeji";
+  const name =
+    draft.name.trim() || (source === "tomoji" ? "New Tomoji" : "Imported Shimeji");
   const id = await allocateNewTomojiFolderName(name);
   const destDir = await characterDirPath(id);
   await ensureDir(destDir);
   const { sourcePathByInput, frameSize } = await writeDraftSprites(id, draft);
+  const animations = buildAnimations(draft, sourcePathByInput);
 
   const manifest: CharacterManifest = {
     id,
     name: id,
     version: "1.0.0",
-    author: "Imported (Shimeji)",
+    author: source === "tomoji" ? "Created in Tomoji" : "Imported (Shimeji)",
     defaultScale: draft.scale,
     defaultSpeed: draft.speed,
     frameWidth: frameSize.width,
     frameHeight: frameSize.height,
-    animations: buildAnimations(draft, sourcePathByInput),
+    animations,
+    sourceAnimations: source === "shimeji" ? animations : undefined,
     behaviorSettings: normalizeBehaviorSettings({
       ...draft.behavior,
       dialogueFrequency: draft.dialogueFrequency,
@@ -1520,7 +1530,7 @@ export async function convertShimejiDraft(
   };
 
   await writeJson(await characterManifestPath(id), manifest);
-  await addCharacter({ manifest, source: "shimeji", folderPath: destDir });
+  await addCharacter({ manifest, source, folderPath: destDir });
 
   return id;
 }

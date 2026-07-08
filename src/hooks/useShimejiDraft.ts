@@ -91,8 +91,8 @@ export function useShimejiDraft() {
   }, []);
 
   // merges new image files into the picker without clearing assignments
-  const mergeImgFolder = useCallback(async () => {
-    const dir = await pickShimejiImgFolder();
+  const mergeImgFolder = useCallback(async (title?: string) => {
+    const dir = await pickShimejiImgFolder(title);
     if (dir === null) {
       return;
     }
@@ -139,8 +139,8 @@ export function useShimejiDraft() {
     }
   }, []);
 
-  const loadImgFolder = useCallback(async () => {
-    const dir = await pickShimejiImgFolder();
+  const loadImgFolder = useCallback(async (title?: string) => {
+    const dir = await pickShimejiImgFolder(title);
     if (dir === null) {
       return;
     }

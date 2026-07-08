@@ -174,7 +174,7 @@ export function ShimejiGraphEditor({
       <TomojiPageLayout
         header={
           <TomojiPageHeader
-            title={`Edit Shimeji graph — ${characterName}`}
+            title={`Remap Shimeji actions — ${characterName}`}
             onBack={handleClose}
           />
         }
@@ -191,7 +191,7 @@ export function ShimejiGraphEditor({
       <TomojiPageLayout
         header={
           <TomojiPageHeader
-            title={`Edit Shimeji graph — ${characterName}`}
+            title={`Remap Shimeji actions — ${characterName}`}
             onBack={handleClose}
           />
         }
@@ -210,8 +210,8 @@ export function ShimejiGraphEditor({
       wide
       header={
         <TomojiPageHeader
-          title={`Edit Shimeji graph — ${characterName}`}
-          subtitle="Edit semantic action mapping and context-menu animations"
+          title={`Remap Shimeji actions — ${characterName}`}
+          subtitle="Remap preserved Shimeji actions and context-menu animations"
           onBack={handleClose}
         />
       }
@@ -230,7 +230,7 @@ export function ShimejiGraphEditor({
             onClick={() => void handleSave()}
             className="rounded-lg bg-white px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
           >
-            {isSaving ? "Saving..." : "Save graph"}
+            {isSaving ? "Saving..." : "Save mappings"}
           </button>
         </div>
       }

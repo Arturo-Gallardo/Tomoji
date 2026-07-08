@@ -12,7 +12,11 @@ import {
 import { openCharacterFolder } from "../../services/tomojiStorage";
 import { TomojiPageHeader } from "./TomojiPageHeader";
 import { TomojiPageLayout } from "./TomojiPageLayout";
-import type { BehaviorSettings, RandomSitAction } from "../../types/character";
+import type {
+  BehaviorSettings,
+  CharacterSource,
+  RandomSitAction,
+} from "../../types/character";
 import type { CompanionInstance } from "../../types/companionInstance";
 
 type RandomBehaviorKey = Extract<
@@ -228,10 +232,25 @@ export function CharacterSettingsEditor({
   const [dialogue, setDialogue] = useState(instance.dialogueSettings);
   const [availableRandomSitActions, setAvailableRandomSitActions] =
     useState<RandomSitAction[] | null>(null);
+  const [characterSource, setCharacterSource] = useState<CharacterSource | null>(
+    null,
+  );
   const [hasFloorCrawl, setHasFloorCrawl] = useState(false);
   const [lineDraft, setLineDraft] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const canEditFrames = onEditFrames !== undefined;
+  const canEditAnimations =
+    onEditFrames !== undefined &&
+    characterSource !== null &&
+    characterSource !== "builtin" &&
+    !isBuiltin;
+  const editAnimationLabel =
+    characterSource === "shimeji"
+      ? "Remap Shimeji actions"
+      : "Edit Tomoji frames";
+  const editAnimationDescription =
+    characterSource === "shimeji"
+      ? "Choose which preserved Shimeji action powers each Tomoji behavior. Imported sprites, frame order, and timing stay locked."
+      : "Change which sprites play for idle, walk, sit, and other actions.";
   const visibleSitOptions = RANDOM_SIT_OPTIONS.filter(
     (option) =>
       availableRandomSitActions === null ||
@@ -356,6 +375,7 @@ export function CharacterSettingsEditor({
         return;
       }
 
+      setCharacterSource(entry?.source ?? null);
       const manifest = entry?.manifest;
       const available = RANDOM_SIT_ACTIONS.filter(
         (action) => {
@@ -521,29 +541,32 @@ export function CharacterSettingsEditor({
             </p>
           </label>
 
-          {canEditFrames ? (
+          {canEditAnimations ? (
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-4">
               <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-                Animation frames
+                {characterSource === "shimeji"
+                  ? "Shimeji action mapping"
+                  : "Animation frames"}
               </p>
               <p className="mt-2 text-xs leading-relaxed text-neutral-500">
-                Change which sprites play for idle, walk, sit, and other
-                actions.
+                {editAnimationDescription}
               </p>
               <button
                 type="button"
                 onClick={onEditFrames}
                 className="mt-4 rounded-lg border border-neutral-600 px-4 py-2 text-sm font-bold text-white hover:border-white"
               >
-                Edit frames
+                {editAnimationLabel}
               </button>
-              <button
-                type="button"
-                onClick={() => void openCharacterFolder(instance.characterId)}
-                className="ml-3 mt-4 rounded-lg border border-neutral-700 px-4 py-2 text-sm font-bold text-neutral-300 hover:border-white hover:text-white"
-              >
-                Open folder
-              </button>
+              {characterSource === "tomoji" ? (
+                <button
+                  type="button"
+                  onClick={() => void openCharacterFolder(instance.characterId)}
+                  className="ml-3 mt-4 rounded-lg border border-neutral-700 px-4 py-2 text-sm font-bold text-neutral-300 hover:border-white hover:text-white"
+                >
+                  Open folder
+                </button>
+              ) : null}
             </div>
           ) : null}
 

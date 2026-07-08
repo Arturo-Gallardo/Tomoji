@@ -42,7 +42,7 @@ export function ShimejiImportWizard({
     setIsFinishing(true);
     setError(null);
     try {
-      const characterId = await convertShimejiDraft(draft);
+      const characterId = await convertShimejiDraft(draft, { source: "tomoji" });
       await onImported(characterId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "conversion failed");
@@ -57,7 +57,7 @@ export function ShimejiImportWizard({
       header={
         <div className="space-y-4">
           <TomojiPageHeader
-            title="Create Tomoji"
+            title="Create new Tomoji"
             onBack={onClose}
             backLabel="Cancel"
           />
@@ -100,7 +100,7 @@ export function ShimejiImportWizard({
               disabled={isFinishing || !hasRequiredFrames}
               className="rounded-lg bg-white px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
             >
-              {isFinishing ? "Creating..." : "Create Tomoji"}
+              {isFinishing ? "Creating..." : "Create editable Tomoji"}
             </button>
           ) : (
             <button
@@ -115,7 +115,9 @@ export function ShimejiImportWizard({
         </div>
       }
     >
-      {step === 0 ? <SelectImgFolderStep controller={controller} /> : null}
+      {step === 0 ? (
+        <SelectImgFolderStep controller={controller} variant="tomoji" />
+      ) : null}
       {step === 1 ? <AssignAnimationsStep controller={controller} /> : null}
       {step === 2 ? <CharacterDetailsStep controller={controller} /> : null}
       {step === 3 ? <FinalPreviewStep controller={controller} /> : null}

@@ -2,32 +2,87 @@ import type { ShimejiDraftController } from "../../hooks/useShimejiDraft";
 
 interface SelectImgFolderStepProps {
   controller: ShimejiDraftController;
+  variant?: "shimeji" | "tomoji";
 }
 
-export function SelectImgFolderStep({ controller }: SelectImgFolderStepProps) {
+export function SelectImgFolderStep({
+  controller,
+  variant = "shimeji",
+}: SelectImgFolderStepProps) {
   const { draft, isLoadingFolder, loadImgFolder } = controller;
+  const isTomoji = variant === "tomoji";
 
   return (
     <div className="space-y-8">
-      <p className="max-w-xl text-sm leading-relaxed text-neutral-400">
-        Pick a folder of image frames (PNG recommended; JPG, WebP, and BMP
-        also work. Choose the character sprite folder inside
-        <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">
-          img
-        </code>
-        , or <code className="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">img</code>{" "}
-        itself when it directly contains shime*.png. Do not choose the outer
-        Shimeji app folder. Choose frames manually, then tune animation speed
-        and details. Your files stay on your machine — nothing is uploaded.
-      </p>
+      {isTomoji ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
+          <p className="max-w-xl text-sm leading-relaxed text-neutral-400">
+            Pick a folder with your Tomoji sprite images. PNG with transparency
+            is recommended; JPG, WebP, and BMP also work. After loading, assign
+            sprites to idle, walk, sit, drag, and other actions. Your files stay
+            on your machine and nothing is uploaded.
+          </p>
+
+          <details className="rounded-2xl border border-sky-500/25 bg-sky-500/10 p-4 text-xs text-sky-100/80">
+            <summary className="cursor-pointer text-sm font-bold text-sky-100">
+              Sprite making guide
+            </summary>
+            <div className="mt-3 space-y-2 leading-relaxed">
+              <p>
+                Use one transparent canvas size for every sprite. 128x128 is a
+                good starting point; larger works if you want more detail.
+              </p>
+              <p>
+                Keep feet bottom-aligned and leave a little padding so the
+                Tomoji does not clip while walking or falling.
+              </p>
+              <p>
+                Required: idle and walk. Recommended walk set: stand, step,
+                alternate step. Optional: sit, fall, bounce, drag poses, wall
+                grab/climb, ceiling grab/crawl, and emotes.
+              </p>
+              <p>
+                Name files clearly, like idle.png, walk-1.png, walk-2.png,
+                sit.png, fall.png. You can reuse the same sprite in multiple
+                actions.
+              </p>
+            </div>
+          </details>
+        </div>
+      ) : (
+        <p className="max-w-xl text-sm leading-relaxed text-neutral-400">
+          Pick a folder of image frames (PNG recommended; JPG, WebP, and BMP
+          also work). Choose the character sprite folder inside{" "}
+          <code className="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">
+            img
+          </code>
+          , or{" "}
+          <code className="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">
+            img
+          </code>{" "}
+          itself when it directly contains shime*.png. Do not choose the outer
+          Shimeji app folder. Your files stay on your machine and nothing is
+          uploaded.
+        </p>
+      )}
 
       <button
         type="button"
         disabled={isLoadingFolder}
-        onClick={() => void loadImgFolder()}
+        onClick={() =>
+          void loadImgFolder(
+            isTomoji
+              ? "Select Tomoji sprite folder"
+              : "Select the Shimeji img sprite folder",
+          )
+        }
         className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
       >
-        {isLoadingFolder ? "Loading..." : "Choose img sprite folder"}
+        {isLoadingFolder
+          ? "Loading..."
+          : isTomoji
+            ? "Choose sprite folder"
+            : "Choose img sprite folder"}
       </button>
 
       {draft.imgDir ? (

@@ -15,7 +15,7 @@ export function AddTomojiCard({ onAdd }: AddTomojiCardProps) {
         <span className="absolute left-0 top-1/2 h-[1.5px] w-14 -translate-y-1/2 bg-white" />
       </span>
       <span className="text-sm font-bold text-white">Add Tomoji</span>
-      <span className="mt-1 text-xs text-neutral-500">Import pack</span>
+      <span className="mt-1 text-xs text-neutral-500">Create or import</span>
     </button>
   );
 }

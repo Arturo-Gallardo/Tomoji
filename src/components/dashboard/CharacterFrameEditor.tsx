@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import { useShimejiDraft } from "../../hooks/useShimejiDraft";
 import { getCharacter } from "../../services/characterLibrary";
 import { saveCharacterDraft } from "../../services/shimejiImporter";
-import { hasRequiredAnimationAssignments } from "../../types/character";
+import {
+  hasRequiredAnimationAssignments,
+  type CharacterSource,
+} from "../../types/character";
 import { AssignAnimationsStep } from "../wizard/AssignAnimationsStep";
 import { FinalPreviewStep } from "../wizard/FinalPreviewStep";
+import { LegacyShimejiRemapEditor } from "./LegacyShimejiRemapEditor";
 import { ShimejiGraphEditor } from "./ShimejiGraphEditor";
 import { TomojiPageHeader } from "./TomojiPageHeader";
 import { TomojiPageLayout } from "./TomojiPageLayout";
@@ -28,6 +32,9 @@ export function CharacterFrameEditor({
   const [step, setStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isGraphImport, setIsGraphImport] = useState<boolean | null>(null);
+  const [characterSource, setCharacterSource] = useState<CharacterSource | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedDraftJson, setSavedDraftJson] = useState<string | null>(null);
@@ -60,13 +67,29 @@ export function CharacterFrameEditor({
           return;
         }
 
-        if (entry?.manifest.animationSystem === "shimejiGraph") {
+        if (!entry) {
+          setLoadError("character not found");
+          return;
+        }
+
+        setCharacterSource(entry.source);
+        if (entry.source === "builtin") {
+          setLoadError("Built-in Tomoji frames are locked.");
+          return;
+        }
+
+        if (
+          entry.source === "shimeji" &&
+          entry.manifest.animationSystem === "shimejiGraph"
+        ) {
           setIsGraphImport(true);
           return;
         }
 
         setIsGraphImport(false);
-        await loadFromCharacter(characterId);
+        if (entry.source === "tomoji") {
+          await loadFromCharacter(characterId);
+        }
       })
       .catch((caught) => {
         if (!cancelled) {
@@ -102,9 +125,20 @@ export function CharacterFrameEditor({
     );
   }
 
+  if (characterSource === "shimeji") {
+    return (
+      <LegacyShimejiRemapEditor
+        characterId={characterId}
+        characterName={characterName}
+        onClose={onClose}
+        onSaved={onSaved}
+      />
+    );
+  }
+
   const handleSave = async () => {
     setIsSaving(true);
-      setSaveError(null);
+    setSaveError(null);
     try {
       await saveCharacterDraft(characterId, draft);
       setSavedDraftJson(JSON.stringify(draft));
@@ -123,7 +157,7 @@ export function CharacterFrameEditor({
       <TomojiPageLayout
         header={
           <TomojiPageHeader
-            title={`Edit frames — ${characterName}`}
+            title={`Edit Tomoji frames - ${characterName}`}
             onBack={handleClose}
           />
         }
@@ -140,7 +174,7 @@ export function CharacterFrameEditor({
       <TomojiPageLayout
         header={
           <TomojiPageHeader
-            title={`Edit frames — ${characterName}`}
+            title={`Edit Tomoji frames - ${characterName}`}
             onBack={handleClose}
           />
         }
@@ -156,7 +190,7 @@ export function CharacterFrameEditor({
       header={
         <div className="space-y-4">
           <TomojiPageHeader
-            title={`Edit frames — ${characterName}`}
+            title={`Edit Tomoji frames - ${characterName}`}
             onBack={handleClose}
           />
           <nav
@@ -225,14 +259,16 @@ export function CharacterFrameEditor({
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="max-w-xl text-sm text-neutral-400">
-              Reassign animation frames from this character&apos;s sprites. Add
-              more source PNGs from a Shimeji img folder if you need extra
-              frames.
+              Reassign animation frames from this native Tomoji&apos;s sprites.
+              Add more PNG, JPG, WebP, or BMP frames from another folder if you
+              need extra source art.
             </p>
             <button
               type="button"
               disabled={isLoadingFolder}
-              onClick={() => void mergeImgFolder()}
+              onClick={() =>
+                void mergeImgFolder("Select extra Tomoji sprite folder")
+              }
               className="shrink-0 rounded-lg border border-neutral-700 px-4 py-2 text-sm font-bold text-neutral-200 hover:border-white disabled:opacity-50"
             >
               {isLoadingFolder ? "Loading..." : "Add frames from folder"}

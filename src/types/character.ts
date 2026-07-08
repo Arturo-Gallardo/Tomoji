@@ -158,6 +158,8 @@ export interface CharacterManifest {
   animations: Partial<Record<AnimationCategory, AnimationDefinition>>;
   animationSystem?: AnimationSystem;
   shimejiGraph?: ShimejiAnimationGraph;
+  // read-only imported action bank used for legacy Shimeji action remapping
+  sourceAnimations?: Partial<Record<AnimationCategory, AnimationDefinition>>;
   behaviorSettings: BehaviorSettings;
   dialogueSettings: DialogueSettings;
   // shimeji = classic walk/climb index cycle; sequential = 1→2→… loop

@@ -1,5 +1,6 @@
 interface AddTomojiModalProps {
   onClose: () => void;
+  onCreateTomoji: () => void;
   onImportTomoji: () => void;
   onImportShimeji: () => void;
 }
@@ -14,14 +15,23 @@ interface AddOption {
 
 export function AddTomojiModal({
   onClose,
+  onCreateTomoji,
   onImportTomoji,
   onImportShimeji,
 }: AddTomojiModalProps) {
   const options: AddOption[] = [
     {
+      id: "create-tomoji",
+      label: "Create new Tomoji",
+      description:
+        "Start from your own sprite folder, assign actions, then save as an editable native Tomoji.",
+      onSelect: onCreateTomoji,
+    },
+    {
       id: "import-shimeji",
       label: "Import Shimeji pack",
-      description: "PC or Android Shimeji. Best for preserving actions, timing, and movement.",
+      description:
+        "PC or Android Shimeji. Preserves original actions, timing, sprites, and movement.",
       onSelect: onImportShimeji,
     },
     {
@@ -49,7 +59,8 @@ export function AddTomojiModal({
           <div>
             <h2 className="text-lg font-bold text-white">Add a Tomoji</h2>
             <p className="mt-1 text-xs text-neutral-500">
-              Not sure? Pick Shimeji pack for downloaded PC/Android packs.
+              Make your own editable Tomoji, import Shimeji, or restore a
+              Tomoji folder.
             </p>
           </div>
           <button
