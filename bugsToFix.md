@@ -2,7 +2,7 @@
 
 - add auto getting on walls and ceiling of screen
 
-android imports keep looping animation when climbing or crawling on a window
+- android imports keep looping animation when climbing or crawling on a window
 
 redo ui - tamagotchi style
 
