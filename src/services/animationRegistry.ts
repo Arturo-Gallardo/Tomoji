@@ -533,6 +533,17 @@ function averagePoseVelocity(
   };
 }
 
+function shouldHoldFirstGraphPose(
+  action: CompanionAction,
+  actionName: string,
+  graph: ShimejiAnimationGraph,
+): boolean {
+  return (
+    (action === "grabWall" && actionName === graph.defaultActions.climbWall) ||
+    (action === "grabCeiling" && actionName === graph.defaultActions.climbCeiling)
+  );
+}
+
 async function graphPoseFrames(
   characterId: string,
   poses: readonly ShimejiGraphPose[],
@@ -577,7 +588,11 @@ async function buildShimejiGraphRegistry(
 
   for (const action of Object.keys(ACTION_TO_CATEGORY) as CompanionAction[]) {
     const actionName = resolveActionName(action);
-    const poses = actionName ? flattenGraphAction(actionName, graph.actions) : [];
+    const flattenedPoses = actionName ? flattenGraphAction(actionName, graph.actions) : [];
+    const poses =
+      actionName && shouldHoldFirstGraphPose(action, actionName, graph)
+        ? flattenedPoses.slice(0, 1)
+        : flattenedPoses;
     posesByAction.set(action, poses);
     const frames = await graphPoseFrames(manifest.id, poses);
     semanticActions.set(action, {

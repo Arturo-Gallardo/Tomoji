@@ -1105,6 +1105,52 @@ function buildAndroidDefaultActions(
   );
 }
 
+function addAndroidStaticGrabAction(
+  actions: Map<string, ParsedAction>,
+  defaults: Partial<Record<ShimejiActionIntent, string>>,
+  grabIntent: "grabWall" | "grabCeiling",
+  moveIntent: "climbWall" | "climbCeiling",
+): void {
+  const actionName = defaults[grabIntent];
+  if (!actionName || actionName !== defaults[moveIntent]) {
+    return;
+  }
+
+  const action = actions.get(actionName);
+  const pose = action?.poses[0];
+  if (!action || !pose) {
+    return;
+  }
+
+  const baseName = `${actionName}__tomoji_${grabIntent}`;
+  let stillName = baseName;
+  for (let suffix = 2; actions.has(stillName); suffix += 1) {
+    stillName = `${baseName}_${suffix}`;
+  }
+
+  actions.set(stillName, {
+    ...action,
+    name: stillName,
+    poses: [
+      {
+        ...pose,
+        velocity: { x: 0, y: 0 },
+        imageAnchor: { ...pose.imageAnchor },
+      },
+    ],
+    references: [],
+  });
+  defaults[grabIntent] = stillName;
+}
+
+function addAndroidStaticGrabActions(
+  actions: Map<string, ParsedAction>,
+  defaults: Partial<Record<ShimejiActionIntent, string>>,
+): void {
+  addAndroidStaticGrabAction(actions, defaults, "grabWall", "climbWall");
+  addAndroidStaticGrabAction(actions, defaults, "grabCeiling", "climbCeiling");
+}
+
 function buildAndroidMenuActions(
   actions: ReadonlyMap<string, ParsedAction>,
   defaults: Partial<Record<ShimejiActionIntent, string>>,
@@ -1362,6 +1408,7 @@ async function buildAndroidGraphDraftFromFolder(
     report,
   );
   const defaultActions = buildAndroidDefaultActions(parsedActions);
+  addAndroidStaticGrabActions(parsedActions, defaultActions);
   const menuActions = buildAndroidMenuActions(parsedActions, defaultActions);
   const allUsedPoses = Array.from(new Set([
     ...Object.values(defaultActions).filter((name): name is string => Boolean(name))

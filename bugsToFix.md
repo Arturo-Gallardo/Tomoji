@@ -1,6 +1,8 @@
 - should still be able to be picked up even when getting up
 
-add auto getting on walls and ceiling of screen
+- add auto getting on walls and ceiling of screen
+
+android imports keep looping animation when climbing or crawling on a window
 
 redo ui - tamagotchi style
 
