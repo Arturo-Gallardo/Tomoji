@@ -45,7 +45,7 @@ export function DashboardShell() {
           />
 
           {selectedInstanceId !== null && selectedInstance !== null ? (
-            <div className="grid min-h-0 flex-1 grid-cols-2">
+            <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1 items-center gap-6 overflow-y-auto px-6 py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
               <CompanionPreview instance={selectedInstance} />
               <DashboardOptionsPanel instance={selectedInstance} />
             </div>

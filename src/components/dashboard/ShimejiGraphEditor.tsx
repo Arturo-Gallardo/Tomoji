@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ACTION_INTENT_ORDER,
   loadShimejiGraphEditorData,
   saveShimejiGraphEditorData,
   type ShimejiGraphEditorData,
 } from "../../services/shimejiGraphEditor";
-import type { ShimejiActionIntent } from "../../types/shimejiGraph";
+import type { ShimejiActionIntent, ShimejiGraphPose } from "../../types/shimejiGraph";
+import {
+  SHIMEJI_ACTION_INTENT_LABELS,
+  ShimejiGraphActionBrowser,
+  ShimejiGraphActionPreview,
+  ShimejiGraphActionThumb,
+} from "../shimejiGraph/ShimejiGraphActionPreview";
 import { TomojiPageHeader } from "./TomojiPageHeader";
 import { TomojiPageLayout } from "./TomojiPageLayout";
 
@@ -16,27 +22,17 @@ interface ShimejiGraphEditorProps {
   onSaved: () => void;
 }
 
-const INTENT_LABELS: Record<ShimejiActionIntent, string> = {
-  idle: "Idle",
-  walk: "Walk",
-  floorCrawl: "Floor crawl",
-  sit: "Sit",
-  sitAlt: "Sit alt 1",
-  sitAlt2: "Lie down",
-  sitOnBar: "Sit on bar",
-  dangleOnBar: "Dangle on bar",
-  fall: "Fall",
-  bounce: "Bounce",
-  dragged: "Dragged",
-  dragResist: "Drag resist",
-  grabWall: "Grab wall",
-  climbWall: "Climb wall",
-  grabCeiling: "Grab ceiling",
-  climbCeiling: "Climb ceiling",
-};
-
 function errorMessage(caught: unknown): string {
   return caught instanceof Error ? caught.message : "failed";
+}
+
+function firstPreviewableActionName(data: ShimejiGraphEditorData): string | null {
+  return (
+    data.manifest.shimejiGraph?.defaultActions.idle ??
+    data.manifest.shimejiGraph?.defaultActions.walk ??
+    data.actionNames[0] ??
+    null
+  );
 }
 
 export function ShimejiGraphEditor({
@@ -50,6 +46,9 @@ export function ShimejiGraphEditor({
     Partial<Record<ShimejiActionIntent, string>>
   >({});
   const [menuActionNames, setMenuActionNames] = useState<string[]>([]);
+  const [selectedActionName, setSelectedActionName] = useState<string | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -68,6 +67,7 @@ export function ShimejiGraphEditor({
         setMenuActionNames(
           nextData.editableMenuActions.map((action) => action.actionName),
         );
+        setSelectedActionName(firstPreviewableActionName(nextData));
       })
       .catch((caught) => {
         if (!cancelled) {
@@ -80,7 +80,6 @@ export function ShimejiGraphEditor({
     };
   }, [characterId]);
 
-  const menuCandidates = useMemo(() => data?.actionNames ?? [], [data]);
   const hasUnsavedChanges =
     data?.manifest.shimejiGraph !== undefined &&
     (JSON.stringify(defaultActions) !==
@@ -113,6 +112,44 @@ export function ShimejiGraphEditor({
 
       return [...current, actionName];
     });
+  };
+
+  const resolvePoseUrl = useCallback(
+    (pose: ShimejiGraphPose) => {
+      if (!pose.src || !data) {
+        return null;
+      }
+
+      return data.poseUrlsBySrc[pose.src] ?? null;
+    },
+    [data],
+  );
+
+  const assignSelectedToIntent = (intent: ShimejiActionIntent) => {
+    if (!selectedActionName) {
+      return;
+    }
+
+    setDefaultActions((current) => ({
+      ...current,
+      [intent]: selectedActionName,
+    }));
+  };
+
+  const clearIntent = (intent: ShimejiActionIntent) => {
+    setDefaultActions((current) => {
+      const next = { ...current };
+      delete next[intent];
+      return next;
+    });
+  };
+
+  const toggleSelectedMenuAction = () => {
+    if (!selectedActionName) {
+      return;
+    }
+
+    toggleMenuAction(selectedActionName);
   };
 
   const handleSave = async () => {
@@ -165,6 +202,8 @@ export function ShimejiGraphEditor({
   }
 
   const graph = data.manifest.shimejiGraph;
+  const selectedIsMenuAction =
+    selectedActionName !== null && menuActionNames.includes(selectedActionName);
 
   return (
     <TomojiPageLayout
@@ -196,8 +235,8 @@ export function ShimejiGraphEditor({
         </div>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <section className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
           <h2 className="text-sm font-bold text-white">Import structure</h2>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div>
@@ -233,61 +272,158 @@ export function ShimejiGraphEditor({
           ) : null}
         </section>
 
-        <section className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
-          <h2 className="text-sm font-bold text-white">Context menu actions</h2>
-          <p className="mt-2 text-xs text-neutral-500">
-            Pick up to 6 imported Shimeji actions for the Animations menu.
-          </p>
-          <div className="mt-4 grid max-h-80 gap-2 overflow-y-auto pr-1">
-            {menuCandidates.map((actionName) => {
-              const checked = menuActionNames.includes(actionName);
+        <ShimejiGraphActionPreview
+          graph={graph}
+          actionName={selectedActionName}
+          resolvePoseUrl={resolvePoseUrl}
+        />
+
+        <div className="min-w-0 xl:row-span-2">
+          <ShimejiGraphActionBrowser
+            graph={graph}
+            selectedActionName={selectedActionName}
+            onSelect={setSelectedActionName}
+            resolvePoseUrl={resolvePoseUrl}
+          />
+        </div>
+
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-white">Core action mapping</h2>
+              <p className="mt-2 text-xs text-neutral-500">
+                Click an action in the browser, preview it, then assign it to a
+                Tomoji behavior.
+              </p>
+            </div>
+            <p className="max-w-xs text-xs text-neutral-500">
+              Graph imports preserve original frame order and timing. Individual
+              frames are read-only.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {ACTION_INTENT_ORDER.map((intent) => {
+              const mappedActionName = defaultActions[intent];
+
               return (
-                <label
-                  key={actionName}
-                  className="flex items-center gap-3 rounded-lg border border-neutral-800 px-3 py-2 text-sm text-neutral-200"
+                <div
+                  key={intent}
+                  className="min-w-0 rounded-xl border border-neutral-800 bg-neutral-950/35 p-3"
                 >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={!checked && menuActionNames.length >= 6}
-                    onChange={() => toggleMenuAction(actionName)}
-                  />
-                  <span>{actionName}</span>
-                </label>
+                  <div className="flex items-center gap-3">
+                    <ShimejiGraphActionThumb
+                      graph={graph}
+                      actionName={mappedActionName}
+                      resolvePoseUrl={resolvePoseUrl}
+                      className="h-12 w-12 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-neutral-400">
+                        {SHIMEJI_ACTION_INTENT_LABELS[intent]}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (mappedActionName) {
+                            setSelectedActionName(mappedActionName);
+                          }
+                        }}
+                        disabled={!mappedActionName}
+                        className="mt-1 block max-w-full truncate text-left text-sm font-bold text-white disabled:text-neutral-600"
+                        title={mappedActionName ?? "Fallback to idle"}
+                      >
+                        {mappedActionName ?? "Fallback to idle"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={!selectedActionName}
+                      onClick={() => assignSelectedToIntent(intent)}
+                      className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-bold text-neutral-200 hover:border-white disabled:opacity-40"
+                    >
+                      Use previewed action
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!mappedActionName}
+                      onClick={() => clearIntent(intent)}
+                      className="rounded-lg border border-neutral-800 px-3 py-1.5 text-xs font-bold text-neutral-500 hover:border-red-500/50 hover:text-red-300 disabled:opacity-40"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
               );
             })}
           </div>
         </section>
 
-        <section className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 lg:col-span-2">
-          <h2 className="text-sm font-bold text-white">Core action mapping</h2>
-          <p className="mt-2 text-xs text-neutral-500">
-            These mappings let Tomoji movement call the closest Shimeji action.
-          </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {ACTION_INTENT_ORDER.map((intent) => (
-              <label key={intent} className="block text-xs font-bold text-neutral-400">
-                {INTENT_LABELS[intent]}
-                <select
-                  value={defaultActions[intent] ?? ""}
-                  onChange={(event) =>
-                    setDefaultActions((current) => ({
-                      ...current,
-                      [intent]: event.target.value || undefined,
-                    }))
-                  }
-                  className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-normal text-white"
-                >
-                  <option value="">Fallback to idle</option>
-                  {data.actionNames.map((actionName) => (
-                    <option key={actionName} value={actionName}>
-                      {actionName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 xl:col-start-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-white">
+                Context menu actions
+              </h2>
+              <p className="mt-2 text-xs text-neutral-500">
+                Pick up to 6 previewed actions for the pet&apos;s Animations
+                menu.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={
+                selectedActionName === null ||
+                (!selectedIsMenuAction && menuActionNames.length >= 6)
+              }
+              onClick={toggleSelectedMenuAction}
+              className="rounded-lg bg-white px-4 py-2 text-xs font-bold text-black disabled:opacity-40"
+            >
+              {selectedIsMenuAction ? "Remove previewed" : "Add previewed"}
+            </button>
           </div>
+
+          {menuActionNames.length > 0 ? (
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
+              {menuActionNames.map((actionName, index) => (
+                <div
+                  key={actionName}
+                  className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-950/35 p-2"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-neutral-800 text-[10px] font-bold text-neutral-300">
+                    {index + 1}
+                  </span>
+                  <ShimejiGraphActionThumb
+                    graph={graph}
+                    actionName={actionName}
+                    resolvePoseUrl={resolvePoseUrl}
+                    className="h-10 w-10 shrink-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedActionName(actionName)}
+                    className="min-w-0 flex-1 truncate text-left text-sm font-bold text-neutral-200 hover:text-white"
+                    title={actionName}
+                  >
+                    {actionName}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleMenuAction(actionName)}
+                    className="rounded-md border border-neutral-800 px-2 py-1 text-[10px] font-bold text-neutral-500 hover:border-red-500/50 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl border border-dashed border-neutral-800 px-3 py-4 text-center text-xs text-neutral-500">
+              No menu actions selected yet.
+            </p>
+          )}
         </section>
       </div>
 

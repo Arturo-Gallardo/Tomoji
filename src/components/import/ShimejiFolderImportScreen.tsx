@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TomojiPageHeader } from "../dashboard/TomojiPageHeader";
 import { TomojiPageLayout } from "../dashboard/TomojiPageLayout";
@@ -14,7 +14,11 @@ import {
   type ShimejiGraphImportScan,
 } from "../../services/shimejiGraphImporter";
 import { toAssetUrl } from "../../services/fs/fileSystemAdapter";
-import { FittedTomojiSprite } from "../dashboard/FittedTomojiSprite";
+import {
+  ShimejiGraphActionBrowser,
+  ShimejiGraphActionPreview,
+} from "../shimejiGraph/ShimejiGraphActionPreview";
+import type { ShimejiGraphPose } from "../../types/shimejiGraph";
 
 interface ShimejiFolderImportScreenProps {
   onClose: () => void;
@@ -100,50 +104,57 @@ function importErrorHelp(format: ShimejiImportFormat): string {
     : "For PC, choose the folder with conf/actions.xml and img/, or manually pick the XML files.";
 }
 
-function draftPreviewSource(draft: ShimejiGraphDraft): string | null {
-  const actionName =
-    draft.graph.defaultActions.idle ??
-    draft.graph.defaultActions.walk ??
-    Object.keys(draft.graph.actions)[0];
-  const pose = actionName ? draft.graph.actions[actionName]?.poses[0] : undefined;
-  return pose?.source ?? null;
-}
-
 function ImportPreview({ draft }: { draft: ShimejiGraphDraft }) {
-  const previewSource = draftPreviewSource(draft);
+  const initialActionName = useMemo(
+    () =>
+      draft.graph.defaultActions.idle ??
+      draft.graph.defaultActions.walk ??
+      Object.keys(draft.graph.actions)[0] ??
+      null,
+    [draft],
+  );
+  const [selectedActionName, setSelectedActionName] = useState<string | null>(
+    initialActionName,
+  );
+
+  useEffect(() => {
+    setSelectedActionName(initialActionName);
+  }, [initialActionName]);
+
+  const resolvePoseUrl = useCallback((pose: ShimejiGraphPose) => {
+    return pose.source ? toAssetUrl(pose.source) : null;
+  }, []);
 
   return (
-    <div className="mt-4 rounded-xl border border-neutral-800 bg-black/20 p-4">
-      <p className="text-sm font-bold text-white">Preview</p>
-      <div className="mt-3 flex items-center gap-4">
-        <div className="flex h-28 w-28 items-end justify-center rounded-xl bg-neutral-950">
-          {previewSource ? (
-            <FittedTomojiSprite
-              frameSrc={toAssetUrl(previewSource)}
-              facing="left"
-              action="idle"
-              targetHeight={82}
-              maxWidth={96}
-            />
-          ) : (
-            <span className="text-xs text-neutral-600">No preview</span>
-          )}
-        </div>
-        <div className="min-w-0 text-xs text-neutral-400">
-          <p>
-            Runtime canvas: {draft.graph.spriteCanvas.width}x
-            {draft.graph.spriteCanvas.height}
+    <div className="mt-4 min-w-0 space-y-4">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <ShimejiGraphActionBrowser
+          graph={draft.graph}
+          selectedActionName={selectedActionName}
+          onSelect={setSelectedActionName}
+          resolvePoseUrl={resolvePoseUrl}
+        />
+        <ShimejiGraphActionPreview
+          graph={draft.graph}
+          actionName={selectedActionName}
+          resolvePoseUrl={resolvePoseUrl}
+        />
+      </div>
+
+      <div className="rounded-xl border border-neutral-800 bg-black/20 p-4 text-xs text-neutral-400">
+        <p>
+          Runtime canvas: {draft.graph.spriteCanvas.width}x
+          {draft.graph.spriteCanvas.height}
+        </p>
+        <p className="mt-1">
+          Imported: {draft.graph.importReport.actionsParsed} actions,{" "}
+          {draft.graph.importReport.posesParsed} poses
+        </p>
+        {draft.runtimeSpriteScale && draft.runtimeSpriteScale < 1 ? (
+          <p className="mt-1 text-emerald-300">
+            Android sprites normalized to desktop size.
           </p>
-          <p className="mt-1">
-            Imported: {draft.graph.importReport.actionsParsed} actions,{" "}
-            {draft.graph.importReport.posesParsed} poses
-          </p>
-          {draft.runtimeSpriteScale && draft.runtimeSpriteScale < 1 ? (
-            <p className="mt-1 text-emerald-300">
-              Android sprites normalized to desktop size.
-            </p>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </div>
   );
@@ -319,8 +330,8 @@ export function ShimejiFolderImportScreen({
         />
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <div className="space-y-5">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="min-w-0 space-y-5">
           <div
             className={`rounded-2xl border border-dashed p-6 transition ${
               isDropActive
@@ -432,55 +443,6 @@ export function ShimejiFolderImportScreen({
             ) : null}
           </div>
 
-          {draft ? (
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
-              <label className="block text-sm font-bold text-white">
-                Tomoji name
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-normal text-white outline-none focus:border-white"
-                  placeholder={draft.name}
-                />
-              </label>
-              <p className="mt-2 text-xs text-neutral-500">
-                Default comes from folder name. Change it before importing if
-                you want.
-              </p>
-              <p className="mt-4 text-xs text-neutral-400">
-                Parsed {draft.graph.importReport.actionsParsed} actions,{" "}
-                {draft.graph.importReport.behaviorsParsed} behaviors, and{" "}
-                {draft.graph.importReport.posesParsed} poses. Runtime canvas:{" "}
-                {draft.graph.spriteCanvas.width}x{draft.graph.spriteCanvas.height},
-                scale {draft.scale.toFixed(2)}x.
-              </p>
-              {draft.graph.menuActions.length > 0 ? (
-                <p className="mt-2 text-xs text-neutral-500">
-                  Menu animations:{" "}
-                  {draft.graph.menuActions
-                    .map((action) => action.label)
-                    .join(", ")}
-                </p>
-              ) : null}
-              <ImportPreview draft={draft} />
-              {draft.graph.importReport.issues.length > 0 ? (
-                <ul className="mt-3 space-y-1 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-                  {draft.graph.importReport.issues.map((issue) => (
-                    <li key={issue.message}>{issue.message}</li>
-                  ))}
-                </ul>
-              ) : null}
-              <button
-                type="button"
-                disabled={isImporting || name.trim() === ""}
-                onClick={() => void handleImport()}
-                className="mt-5 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
-              >
-                {isImporting ? "Importing..." : "Import as Tomoji"}
-              </button>
-            </div>
-          ) : null}
-
           {error ? (
             <div className="rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm text-red-300">
               <p>{error}</p>
@@ -492,6 +454,69 @@ export function ShimejiFolderImportScreen({
         </div>
 
         <FolderTreeExample format={importFormat} />
+
+        {draft ? (
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 lg:col-span-2">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+              <div>
+                <label className="block text-sm font-bold text-white">
+                  Tomoji name
+                  <input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-normal text-white outline-none focus:border-white"
+                    placeholder={draft.name}
+                  />
+                </label>
+                <p className="mt-2 text-xs text-neutral-500">
+                  Default comes from folder name. Change it before importing if
+                  you want.
+                </p>
+                <p className="mt-4 text-xs text-neutral-400">
+                  Parsed {draft.graph.importReport.actionsParsed} actions,{" "}
+                  {draft.graph.importReport.behaviorsParsed} behaviors, and{" "}
+                  {draft.graph.importReport.posesParsed} poses. Runtime canvas:{" "}
+                  {draft.graph.spriteCanvas.width}x
+                  {draft.graph.spriteCanvas.height}, scale{" "}
+                  {draft.scale.toFixed(2)}x.
+                </p>
+                <p className="mt-2 text-xs text-neutral-500">
+                  Graph imports keep original action timing and frame order.
+                  Preview actions below; individual frames are not edited in this
+                  flow.
+                </p>
+                {draft.graph.menuActions.length > 0 ? (
+                  <p className="mt-2 text-xs text-neutral-500">
+                    Menu animations:{" "}
+                    {draft.graph.menuActions
+                      .map((action) => action.label)
+                      .join(", ")}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={isImporting || name.trim() === ""}
+                  onClick={() => void handleImport()}
+                  className="mt-5 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
+                >
+                  {isImporting ? "Importing..." : "Import as Tomoji"}
+                </button>
+              </div>
+
+              <div>
+                {draft.graph.importReport.issues.length > 0 ? (
+                  <ul className="space-y-1 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                    {draft.graph.importReport.issues.map((issue) => (
+                      <li key={issue.message}>{issue.message}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+
+            <ImportPreview draft={draft} />
+          </div>
+        ) : null}
       </div>
     </TomojiPageLayout>
   );

@@ -1,13 +1,14 @@
 import type { CharacterManifest } from "../types/character";
 import type { ShimejiActionIntent, ShimejiMenuAction } from "../types/shimejiGraph";
-import { characterManifestPath } from "./fs/appPaths";
-import { writeJson } from "./fs/fileSystemAdapter";
+import { characterDirPath, characterManifestPath } from "./fs/appPaths";
+import { joinPath, toAssetUrl, writeJson } from "./fs/fileSystemAdapter";
 import { addCharacter, getCharacter } from "./characterLibrary";
 
 export interface ShimejiGraphEditorData {
   manifest: CharacterManifest;
   actionNames: string[];
   editableMenuActions: ShimejiMenuAction[];
+  poseUrlsBySrc: Record<string, string>;
 }
 
 const ACTION_INTENT_ORDER: readonly ShimejiActionIntent[] = [
@@ -44,11 +45,22 @@ export async function loadShimejiGraphEditorData(
     .filter((action) => action.poses.length > 0 || action.references.length > 0)
     .map((action) => action.name)
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const characterDir = await characterDirPath(characterId);
+  const poseUrlsBySrc: Record<string, string> = {};
+
+  for (const action of Object.values(graph.actions)) {
+    for (const pose of action.poses) {
+      if (pose.src && poseUrlsBySrc[pose.src] === undefined) {
+        poseUrlsBySrc[pose.src] = toAssetUrl(await joinPath(characterDir, pose.src));
+      }
+    }
+  }
 
   return {
     manifest: entry.manifest,
     actionNames,
     editableMenuActions: graph.menuActions,
+    poseUrlsBySrc,
   };
 }
 

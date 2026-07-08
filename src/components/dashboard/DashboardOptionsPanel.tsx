@@ -88,20 +88,24 @@ export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) 
   const hint = commandHint(isCommandBlocked, isMuted, canDialogue);
 
   return (
-    <section className="flex h-full min-h-0 items-center justify-center p-8">
-      <div className="flex h-full w-full max-w-sm flex-col rounded-lg border-2 border-neutral-600/80 p-6">
-        <div className="mb-5">
-          <p className="text-sm font-bold text-white">{instance.name}</p>
-          <p className="mt-1 text-xs leading-relaxed text-neutral-500">{hint}</p>
+    <section className="flex min-h-0 items-center justify-center">
+      <div className="w-full rounded-3xl border border-neutral-700/80 bg-neutral-900/45 p-5 shadow-2xl shadow-black/25">
+        <div className="mb-5 shrink-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-500">
+            Quick controls
+          </p>
+          <p className="mt-2 text-lg font-bold text-white">{instance.name}</p>
         </div>
 
-        <div className="flex flex-1 flex-col justify-evenly gap-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={handleDialogueClick}
-            disabled={!canDialogue}
             title={!canDialogue ? hint : "Make this Tomoji say a line now"}
-            className="flex flex-1 items-center justify-center rounded-md border-2 border-neutral-600/70 text-lg text-neutral-200 enabled:hover:border-neutral-400/80 enabled:hover:text-white disabled:cursor-default disabled:opacity-50"
+            aria-disabled={!canDialogue}
+            className={`flex min-h-24 items-center justify-center rounded-2xl border border-neutral-700 bg-neutral-950/50 text-base font-bold text-neutral-300 transition hover:border-neutral-400/80 hover:text-white ${
+              canDialogue ? "" : "cursor-default opacity-45"
+            }`}
           >
             Dialogue
           </button>
@@ -109,13 +113,13 @@ export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) 
           <button
             type="button"
             onClick={handleSitClick}
-            disabled={!canToggleSit}
             title={!canToggleSit ? hint : isSitting ? "Stand up" : "Sit down"}
-            className={`flex flex-1 items-center justify-center rounded-md border-2 text-lg text-neutral-200 enabled:hover:border-neutral-400/80 enabled:hover:text-white disabled:cursor-default disabled:opacity-50 ${
+            aria-disabled={!canToggleSit}
+            className={`flex min-h-24 items-center justify-center rounded-2xl border text-base font-bold text-neutral-300 transition hover:border-neutral-400/80 hover:text-white ${
               isSitting
-                ? "border-neutral-400/90 text-white"
-                : "border-neutral-600/70"
-            }`}
+                ? "border-white bg-white text-black"
+                : "border-neutral-700 bg-neutral-950/50"
+            } ${canToggleSit ? "" : "cursor-default opacity-45"}`}
           >
             {isSitting ? "Stand" : "Sit"}
           </button>
@@ -123,10 +127,10 @@ export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) 
           <button
             type="button"
             onClick={handleFreezeClick}
-            className={`flex flex-1 items-center justify-center rounded-md border-2 text-lg text-neutral-200 hover:border-neutral-400/80 hover:text-white ${
+            className={`flex min-h-24 items-center justify-center rounded-2xl border text-base font-bold text-neutral-300 transition hover:border-neutral-400/80 hover:text-white ${
               isFrozen
-                ? "border-neutral-400/90 text-white"
-                : "border-neutral-600/70"
+                ? "border-white bg-white text-black"
+                : "border-neutral-700 bg-neutral-950/50"
             }`}
           >
             {isFrozen ? "Unfreeze" : "Freeze"}
@@ -136,10 +140,10 @@ export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) 
             type="button"
             onClick={handleMuteClick}
             aria-pressed={isMuted}
-            className={`flex flex-1 items-center justify-center rounded-md border-2 text-lg text-neutral-200 hover:border-neutral-400/80 hover:text-white ${
+            className={`flex min-h-24 items-center justify-center rounded-2xl border text-base font-bold text-neutral-300 transition hover:border-neutral-400/80 hover:text-white ${
               isMuted
-                ? "border-neutral-400/90 text-white"
-                : "border-neutral-600/70"
+                ? "border-white bg-white text-black"
+                : "border-neutral-700 bg-neutral-950/50"
             }`}
           >
             {isMuted ? "Unmute" : "Mute"}
