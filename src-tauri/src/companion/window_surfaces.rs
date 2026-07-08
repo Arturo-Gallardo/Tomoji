@@ -166,7 +166,7 @@ fn is_cloaked(hwnd: windows::Win32::Foundation::HWND) -> bool {
 fn surface_from_hwnd(hwnd: windows::Win32::Foundation::HWND) -> Option<WindowSurface> {
     use windows::Win32::Foundation::RECT;
     use windows::Win32::UI::WindowsAndMessaging::{
-        GetAncestor, GetWindowLongPtrW, GetWindowRect, IsIconic, IsWindowVisible, GA_ROOT,
+        GetAncestor, GetWindowLongPtrW, GetWindowRect, IsIconic, IsWindowVisible, IsZoomed, GA_ROOT,
         GWL_EXSTYLE, GWL_STYLE, WS_CAPTION, WS_EX_TOOLWINDOW,
     };
 
@@ -216,6 +216,13 @@ fn surface_from_hwnd(hwnd: windows::Win32::Foundation::HWND) -> Option<WindowSur
         }
 
         if is_phantom_snap_surface(hwnd, &rect) {
+            return None;
+        }
+
+        // Maximized/fullscreen windows should behave like monitor edges, not
+        // window surfaces. Otherwise pets can lock to the app wall and face the
+        // wrong direction instead of hugging the screen bezel.
+        if IsZoomed(hwnd).as_bool() || rect_covers_monitor(&rect) {
             return None;
         }
 
@@ -513,6 +520,24 @@ fn rect_covers_work_area(rect: &windows::Win32::Foundation::RECT) -> bool {
         && rect.right >= work.right - EDGE_TOLERANCE
         && rect.top <= work.top + EDGE_TOLERANCE
         && rect.bottom >= work.bottom - EDGE_TOLERANCE
+}
+
+#[cfg(windows)]
+fn rect_covers_monitor(rect: &windows::Win32::Foundation::RECT) -> bool {
+    const EDGE_TOLERANCE: i32 = 4;
+
+    let center_x = (rect.left + rect.right) / 2;
+    let center_y = (rect.top + rect.bottom) / 2;
+    let Some(info) = monitor_info_at_point(center_x, center_y) else {
+        return false;
+    };
+
+    let monitor = info.rcMonitor;
+
+    rect.left <= monitor.left + EDGE_TOLERANCE
+        && rect.right >= monitor.right - EDGE_TOLERANCE
+        && rect.top <= monitor.top + EDGE_TOLERANCE
+        && rect.bottom >= monitor.bottom - EDGE_TOLERANCE
 }
 
 // invisible fullscreen hosts (empty UWP frame, desktop, gpu overlay) register as
