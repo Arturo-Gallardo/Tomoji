@@ -13,6 +13,7 @@ import { useCompanionSpeechWindow } from "../../hooks/useCompanionSpeechWindow";
 import { useCompanionWindowSizeSync } from "../../hooks/useCompanionWindowSizeSync";
 import type { AnimationRegistry } from "../../services/animationRegistry";
 import {
+  duplicateTemporaryInstance,
   setInstanceEnabled,
   updateInstance,
 } from "../../services/companionInstanceManager";
@@ -32,6 +33,10 @@ function CompanionWindowInner({ instance, registry }: CompanionWindowInnerProps)
 
   const turnOff = useCallback(() => {
     void setInstanceEnabled(instance.id, false);
+  }, [instance.id]);
+
+  const duplicate = useCallback(() => {
+    void duplicateTemporaryInstance(instance.id);
   }, [instance.id]);
 
   const {
@@ -90,6 +95,7 @@ function CompanionWindowInner({ instance, registry }: CompanionWindowInnerProps)
     onPlayAnimation: playMenuAnimation,
     onToggleFreeze: toggleFreeze,
     onToggleMute: toggleMute,
+    onDuplicate: duplicate,
     onTurnOff: turnOff,
     onUnfreeze: unfreeze,
   });

@@ -20,6 +20,7 @@ export type CompanionMenuAction =
   | CompanionMenuAnimationAction
   | "toggleFreeze"
   | "toggleMute"
+  | "duplicate"
   | "turnOff";
 
 export type TargetPickerMode = "walk" | "floorCrawl" | "crawl" | "climb";

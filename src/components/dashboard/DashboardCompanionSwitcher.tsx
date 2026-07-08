@@ -40,9 +40,7 @@ export function DashboardCompanionSwitcher({
                   : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white"
               }`}
             >
-              {isBuiltinCharacterId(instance.characterId)
-                ? instance.name
-                : instance.characterId}
+              {companionLabel(instance)}
               {instance.muted === true ? (
                 <span aria-label="Muted" title="Muted">
                   <MutedIcon className="h-3.5 w-3.5" />
@@ -54,4 +52,12 @@ export function DashboardCompanionSwitcher({
       </div>
     </div>
   );
+}
+
+function companionLabel(instance: CompanionInstance): string {
+  const baseLabel = isBuiltinCharacterId(instance.characterId)
+    ? instance.name
+    : instance.characterId;
+
+  return instance.isTemporaryClone ? `${baseLabel} (clone)` : baseLabel;
 }

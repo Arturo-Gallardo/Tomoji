@@ -132,9 +132,15 @@ pub fn show_companion_menu(
         .get_webview_window(MENU_WINDOW_LABEL)
         .ok_or_else(|| "companion menu window not found".to_string())?;
 
-    let has_animation_menu = !wall_locked && !underside_locked && !available_actions.is_empty();
+    let is_free = !wall_locked && !underside_locked;
+    let has_animation_menu = is_free && !available_actions.is_empty();
     let item_count = 5
-        + if !wall_locked && !underside_locked && can_floor_crawl {
+        + if is_free {
+            1
+        } else {
+            0
+        }
+        + if is_free && can_floor_crawl {
             1
         } else {
             0
@@ -208,7 +214,7 @@ pub fn resize_companion_menu(
         .lock()
         .map_err(|error| format!("failed to lock companion menu anchor: {error}"))?
         .ok_or_else(|| "companion menu anchor not found".to_string())?;
-    let item_count = 6 + extra_item_count + if expanded { animation_item_count } else { 0 };
+    let item_count = 7 + extra_item_count + if expanded { animation_item_count } else { 0 };
     let menu_height =
         (MENU_VERTICAL_PADDING + item_count as f64 * MENU_ITEM_HEIGHT).min(MAX_MENU_HEIGHT);
     let bounds = query_desktop_bounds()?;

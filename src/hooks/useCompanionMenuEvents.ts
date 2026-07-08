@@ -9,6 +9,7 @@ interface UseCompanionMenuEventsOptions {
   onPlayAnimation: (action: CompanionMenuAnimationAction) => void;
   onToggleFreeze: () => void;
   onToggleMute: () => void;
+  onDuplicate: () => void;
   onTurnOff: () => void;
   onUnfreeze: () => void;
 }
@@ -56,6 +57,9 @@ function handleMenuAction(
     case "toggleMute":
       handlers.onToggleMute();
       break;
+    case "duplicate":
+      handlers.onDuplicate();
+      break;
     case "turnOff":
       handlers.onTurnOff();
       break;
@@ -83,6 +87,7 @@ export function useCompanionMenuEvents(
     handlers.onPlayAnimation,
     handlers.onToggleFreeze,
     handlers.onToggleMute,
+    handlers.onDuplicate,
     handlers.onTurnOff,
     handlers.onTurnAround,
     handlers.onUnfreeze,

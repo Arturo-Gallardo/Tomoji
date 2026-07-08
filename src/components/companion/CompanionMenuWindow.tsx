@@ -214,6 +214,16 @@ export function CompanionMenuWindow() {
       <button
         type="button"
         onClick={() => {
+          handleAction("duplicate");
+        }}
+        className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+      >
+        Duplicate
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
           handleAction("toggleFreeze");
         }}
         className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"

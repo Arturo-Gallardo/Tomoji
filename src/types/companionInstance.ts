@@ -21,6 +21,9 @@ export interface CompanionInstance {
   muted?: boolean;
   // hidden from main tomojis grid; companion window stays closed
   archived?: boolean;
+  // live-only context-menu clone; hidden from Tomojis and dropped on reconcile
+  isTemporaryClone?: boolean;
+  parentInstanceId?: string;
   currentAnimation: CompanionAction;
   behaviorState: CompanionBehaviorState;
   behaviorSettings: BehaviorSettings;

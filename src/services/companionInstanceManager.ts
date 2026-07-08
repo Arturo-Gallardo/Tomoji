@@ -113,7 +113,8 @@ function resolveLibraryEntry(
   return null;
 }
 
-// disk folders are source of truth — drop orphan/duplicate cards, fix stale ids
+// disk folders are source of truth: drop orphan cards, fix stale ids, keep
+// explicit duplicate instances.
 async function repairCompanionRegistry(
   instances: CompanionInstance[],
 ): Promise<{
@@ -130,20 +131,20 @@ async function repairCompanionRegistry(
 
   let changed = false;
   const next: CompanionInstance[] = [];
-  const seenFolders = new Set<string>();
+  const seenCharacterIds = new Set<string>();
   const newlyAdded: CompanionInstance[] = [];
 
   for (const instance of instances) {
-    if (isBuiltinCharacterId(instance.characterId)) {
-      if (seenFolders.has(BUILTIN_CHARACTER_ID)) {
-        changed = true;
-        if (instance.enabled) {
-          await destroyCompanionInstanceWindow(instance.id);
-        }
-        continue;
+    if (instance.isTemporaryClone) {
+      changed = true;
+      if (instance.enabled) {
+        await destroyCompanionInstanceWindow(instance.id);
       }
+      continue;
+    }
 
-      seenFolders.add(BUILTIN_CHARACTER_ID);
+    if (isBuiltinCharacterId(instance.characterId)) {
+      seenCharacterIds.add(BUILTIN_CHARACTER_ID);
       next.push(instance);
       continue;
     }
@@ -158,15 +159,7 @@ async function repairCompanionRegistry(
     }
 
     const folderName = entry.manifest.id;
-    if (seenFolders.has(folderName)) {
-      changed = true;
-      if (instance.enabled) {
-        await destroyCompanionInstanceWindow(instance.id);
-      }
-      continue;
-    }
-
-    seenFolders.add(folderName);
+    seenCharacterIds.add(folderName);
     const repaired: CompanionInstance = {
       ...instance,
       characterId: folderName,
@@ -184,7 +177,7 @@ async function repairCompanionRegistry(
   }
 
   for (const character of imported) {
-    if (seenFolders.has(character.manifest.id)) {
+    if (seenCharacterIds.has(character.manifest.id)) {
       continue;
     }
 
@@ -197,7 +190,7 @@ async function repairCompanionRegistry(
     );
     next.push(instance);
     newlyAdded.push(instance);
-    seenFolders.add(character.manifest.id);
+    seenCharacterIds.add(character.manifest.id);
     changed = true;
   }
 
@@ -363,22 +356,113 @@ export async function addInstance(
   return instance;
 }
 
+function cloneInstanceName(source: CompanionInstance): string {
+  return isBuiltinCharacterId(source.characterId)
+    ? source.name
+    : source.characterId;
+}
+
+function cloneSpawnAnchor(source: CompanionInstance): { x: number; y: number } {
+  return {
+    x: source.position.x + SPAWN_STAGGER_PX,
+    y: source.position.y,
+  };
+}
+
+export async function duplicateTemporaryInstance(
+  id: string,
+): Promise<CompanionInstance> {
+  const instances = await readStoredInstances();
+  const source = instances.find((instance) => instance.id === id);
+  if (!source) {
+    throw new Error(`companion instance not found: ${id}`);
+  }
+
+  if (!(await getCharacter(source.characterId))) {
+    throw new Error(`character not found: ${source.characterId}`);
+  }
+
+  const duplicate: CompanionInstance = {
+    ...source,
+    id: crypto.randomUUID(),
+    name: cloneInstanceName(source),
+    position: cloneSpawnAnchor(source),
+    velocity: { x: 0, y: 0 },
+    enabled: true,
+    archived: false,
+    isTemporaryClone: true,
+    parentInstanceId: source.parentInstanceId ?? source.id,
+    currentAnimation: "idle",
+    behaviorState: "idle",
+    behaviorSettings: { ...source.behaviorSettings },
+    dialogueSettings: { ...source.dialogueSettings },
+  };
+
+  await writeStoredInstances([...instances, duplicate]);
+
+  if (duplicate.enabled) {
+    await spawnInstanceWindow(duplicate);
+  }
+
+  return duplicate;
+}
+
+function isLastBuiltinInstance(
+  target: CompanionInstance | undefined,
+  instances: readonly CompanionInstance[],
+): boolean {
+  if (!target || !isBuiltinCharacterId(target.characterId)) {
+    return false;
+  }
+
+  const builtinCount = instances.filter(
+    (instance) =>
+      !instance.isTemporaryClone && isBuiltinCharacterId(instance.characterId),
+  ).length;
+  return builtinCount <= 1;
+}
+
+function linkedTemporaryCloneIds(
+  parentId: string,
+  instances: readonly CompanionInstance[],
+): Set<string> {
+  return new Set(
+    instances
+      .filter(
+        (instance) =>
+          instance.isTemporaryClone && instance.parentInstanceId === parentId,
+      )
+      .map((instance) => instance.id),
+  );
+}
+
 export async function removeInstance(id: string): Promise<void> {
   const instances = await readStoredInstances();
   const target = instances.find((instance) => instance.id === id);
-  if (target !== undefined && isBuiltinCharacterId(target.characterId)) {
+  if (isLastBuiltinInstance(target, instances)) {
     return;
   }
 
   const characterId = target?.characterId;
-  const remaining = instances.filter((instance) => instance.id !== id);
+  const linkedCloneIds =
+    target && !target.isTemporaryClone
+      ? linkedTemporaryCloneIds(target.id, instances)
+      : new Set<string>();
+  const removedIds = new Set([id, ...linkedCloneIds]);
+  const remaining = instances.filter((instance) => !removedIds.has(instance.id));
   await writeStoredInstances(remaining);
-  await destroyCompanionInstanceWindow(id);
+  for (const removedId of removedIds) {
+    await destroyCompanionInstanceWindow(removedId);
+  }
 
   if (
     characterId !== undefined &&
     !isBuiltinCharacterId(characterId) &&
-    !remaining.some((instance) => instance.characterId === characterId)
+    !target?.isTemporaryClone &&
+    !remaining.some(
+      (instance) =>
+        !instance.isTemporaryClone && instance.characterId === characterId,
+    )
   ) {
     await removeCharacter(characterId);
   }
@@ -389,20 +473,77 @@ export async function setInstanceEnabled(
   enabled: boolean,
 ): Promise<void> {
   const instances = await readStoredInstances();
-  const next = instances.map((instance) =>
-    instance.id === id ? { ...instance, enabled } : instance,
-  );
-  await writeStoredInstances(next);
-
-  const target = next.find((instance) => instance.id === id);
+  const target = instances.find((instance) => instance.id === id);
   if (!target || (enabled && target.archived)) {
     return;
   }
 
+  if (target.isTemporaryClone) {
+    if (enabled) {
+      await spawnInstanceWindow({ ...target, enabled: true });
+      return;
+    }
+
+    await writeStoredInstances(instances.filter((instance) => instance.id !== id));
+    await destroyCompanionInstanceWindow(id);
+    return;
+  }
+
+  const linkedCloneIds = enabled
+    ? new Set<string>()
+    : linkedTemporaryCloneIds(id, instances);
+  const next = instances.map((instance) =>
+    instance.id === id ? { ...instance, enabled } : instance,
+  ).filter((instance) => !linkedCloneIds.has(instance.id));
+  await writeStoredInstances(next);
+
   if (enabled) {
-    await spawnInstanceWindow(target);
+    await spawnInstanceWindow({ ...target, enabled: true });
   } else {
     await destroyCompanionInstanceWindow(id);
+    for (const cloneId of linkedCloneIds) {
+      await destroyCompanionInstanceWindow(cloneId);
+    }
+  }
+}
+
+export async function setActiveInstancesEnabled(enabled: boolean): Promise<void> {
+  const instances = await readStoredInstances();
+  const cloneIds = new Set(
+    instances
+      .filter((instance) => instance.isTemporaryClone)
+      .map((instance) => instance.id),
+  );
+  const changedInstances = instances.filter(
+    (instance) =>
+      !instance.isTemporaryClone &&
+      !instance.archived &&
+      instance.enabled !== enabled,
+  );
+
+  if (changedInstances.length === 0 && cloneIds.size === 0) {
+    return;
+  }
+
+  const next = instances
+    .filter((instance) => !instance.isTemporaryClone)
+    .map((instance) =>
+      instance.archived ? instance : { ...instance, enabled },
+    );
+  await writeStoredInstances(next);
+
+  if (enabled) {
+    for (const instance of changedInstances) {
+      await spawnInstanceWindow({ ...instance, enabled });
+    }
+    return;
+  }
+
+  for (const instance of changedInstances) {
+    await destroyCompanionInstanceWindow(instance.id);
+  }
+  for (const cloneId of cloneIds) {
+    await destroyCompanionInstanceWindow(cloneId);
   }
 }
 
@@ -465,16 +606,26 @@ export async function archiveInstance(id: string): Promise<void> {
     return;
   }
 
+  if (target.isTemporaryClone) {
+    await removeInstance(id);
+    return;
+  }
+
+  const linkedCloneIds = linkedTemporaryCloneIds(id, instances);
+  const next = instances
+    .filter((instance) => !linkedCloneIds.has(instance.id))
+    .map((instance) =>
+      instance.id === id
+        ? { ...instance, archived: true, enabled: false }
+        : instance,
+    );
+  await writeStoredInstances(next);
   if (target.enabled) {
     await destroyCompanionInstanceWindow(id);
   }
-
-  const next = instances.map((instance) =>
-    instance.id === id
-      ? { ...instance, archived: true, enabled: false }
-      : instance,
-  );
-  await writeStoredInstances(next);
+  for (const cloneId of linkedCloneIds) {
+    await destroyCompanionInstanceWindow(cloneId);
+  }
 }
 
 export async function unarchiveInstance(id: string): Promise<void> {
@@ -490,7 +641,10 @@ export async function reorderActiveInstances(
   orderedActiveIds: string[],
 ): Promise<void> {
   const instances = await readStoredInstances();
-  const active = instances.filter((instance) => !instance.archived);
+  const active = instances.filter(
+    (instance) => !instance.archived && !instance.isTemporaryClone,
+  );
+  const temporary = instances.filter((instance) => instance.isTemporaryClone);
   const archived = instances.filter((instance) => instance.archived);
   const byId = new Map(active.map((instance) => [instance.id, instance]));
 
@@ -505,6 +659,7 @@ export async function reorderActiveInstances(
   await writeStoredInstances([
     ...reorderedActive,
     ...missingActive,
+    ...temporary,
     ...archived,
   ]);
 }
@@ -517,7 +672,7 @@ async function bootstrapCompanionsInternal(): Promise<CompanionInstance[]> {
   const { restoreCompanionsOnLaunch } = await getAppSettings();
   if (restoreCompanionsOnLaunch) {
     for (const instance of instances) {
-      if (instance.enabled && !instance.archived) {
+      if (instance.enabled && !instance.archived && !instance.isTemporaryClone) {
         await spawnInstanceWindow(instance);
       }
     }

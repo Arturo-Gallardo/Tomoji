@@ -20,7 +20,6 @@ interface TomojiCardProps {
   onDelete: (id: string) => void;
   onToggle: (id: string, enabled: boolean) => void;
   onEdit: (id: string) => void;
-  onDuplicate?: (characterId: string) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
   confirmBeforeDelete?: boolean;
@@ -72,7 +71,6 @@ export function TomojiCard({
   onDelete,
   onToggle,
   onEdit,
-  onDuplicate,
   onArchive,
   onRestore,
   confirmBeforeDelete = true,
@@ -100,11 +98,6 @@ export function TomojiCard({
 
   const handleEdit = () => {
     onEdit(instance.id);
-    setIsMenuOpen(false);
-  };
-
-  const handleDuplicate = () => {
-    onDuplicate?.(instance.characterId);
     setIsMenuOpen(false);
   };
 
@@ -243,15 +236,6 @@ export function TomojiCard({
           >
             Edit
           </button>
-          {onDuplicate ? (
-            <button
-              type="button"
-              onClick={handleDuplicate}
-              className="w-full rounded-md px-3 py-2 text-left text-xs font-bold text-neutral-200 hover:bg-neutral-800"
-            >
-              Duplicate
-            </button>
-          ) : null}
           {canArchive ? (
             <button
               type="button"

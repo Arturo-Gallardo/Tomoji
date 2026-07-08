@@ -108,6 +108,7 @@ export function TomojisView() {
     addCompanion,
     removeCompanion,
     toggleCompanion,
+    setAllActiveCompanionsEnabled,
     updateCompanion,
     archiveCompanion,
     unarchiveCompanion,
@@ -139,9 +140,8 @@ export function TomojisView() {
     setFlow("list");
   };
 
-  const handleDuplicate = async (characterId: string) => {
-    await addCompanion(characterId);
-    setLastImportMessage(`Duplicated ${characterId}.`);
+  const handleSetAllActive = async (enabled: boolean) => {
+    await setAllActiveCompanionsEnabled(enabled);
   };
 
   const handleRefresh = async () => {
@@ -308,6 +308,24 @@ export function TomojisView() {
             {lastImportMessage}
           </p>
         ) : null}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleSetAllActive(true)}
+            disabled={activeInstances.length === 0}
+            className="rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Turn all on
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSetAllActive(false)}
+            disabled={activeInstances.length === 0}
+            className="rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Turn all off
+          </button>
+        </div>
       </div>
 
       <TomojiGrid
@@ -320,7 +338,6 @@ export function TomojisView() {
           setEditingId(id);
           setFlow("edit");
         }}
-        onDuplicate={(characterId) => void handleDuplicate(characterId)}
         onArchive={(id) => void archiveCompanion(id)}
         onAdd={() => setFlow("add")}
         confirmBeforeDelete={settings?.confirmBeforeDelete}

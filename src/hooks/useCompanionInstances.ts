@@ -8,6 +8,7 @@ import {
   reconcileTomojiRegistry,
   removeInstance,
   reorderActiveInstances,
+  setActiveInstancesEnabled,
   setInstanceEnabled,
   unarchiveInstance,
   updateInstance,
@@ -22,6 +23,7 @@ interface UseCompanionInstancesResult {
   addCompanion: (characterId: string, name?: string) => Promise<void>;
   removeCompanion: (id: string) => Promise<void>;
   toggleCompanion: (id: string, enabled: boolean) => Promise<void>;
+  setAllActiveCompanionsEnabled: (enabled: boolean) => Promise<void>;
   updateCompanion: (
     id: string,
     patch: Partial<Omit<CompanionInstance, "id">>,
@@ -85,6 +87,10 @@ export function useCompanionInstances(): UseCompanionInstancesResult {
     await setInstanceEnabled(id, enabled);
   }, []);
 
+  const setAllActiveCompanionsEnabled = useCallback(async (enabled: boolean) => {
+    await setActiveInstancesEnabled(enabled);
+  }, []);
+
   const updateCompanion = useCallback(
     async (id: string, patch: Partial<Omit<CompanionInstance, "id">>) => {
       await updateInstance(id, patch);
@@ -109,12 +115,18 @@ export function useCompanionInstances(): UseCompanionInstancesResult {
   }, []);
 
   const activeInstances = useMemo(
-    () => instances.filter((instance) => !instance.archived),
+    () =>
+      instances.filter(
+        (instance) => !instance.archived && !instance.isTemporaryClone,
+      ),
     [instances],
   );
 
   const archivedInstances = useMemo(
-    () => instances.filter((instance) => instance.archived),
+    () =>
+      instances.filter(
+        (instance) => instance.archived && !instance.isTemporaryClone,
+      ),
     [instances],
   );
 
@@ -127,6 +139,7 @@ export function useCompanionInstances(): UseCompanionInstancesResult {
       addCompanion,
       removeCompanion,
       toggleCompanion,
+      setAllActiveCompanionsEnabled,
       updateCompanion,
       archiveCompanion,
       unarchiveCompanion,
@@ -143,6 +156,7 @@ export function useCompanionInstances(): UseCompanionInstancesResult {
       removeCompanion,
       reorderCompanions,
       refreshFromDisk,
+      setAllActiveCompanionsEnabled,
       toggleCompanion,
       unarchiveCompanion,
       updateCompanion,

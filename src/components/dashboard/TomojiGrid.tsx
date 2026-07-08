@@ -10,7 +10,6 @@ interface TomojiGridProps {
   onDelete: (id: string) => void;
   onToggle: (id: string, enabled: boolean) => void;
   onEdit: (id: string) => void;
-  onDuplicate?: (characterId: string) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
   onAdd?: () => void;
@@ -24,7 +23,6 @@ export function TomojiGrid({
   onDelete,
   onToggle,
   onEdit,
-  onDuplicate,
   onArchive,
   onRestore,
   onAdd,
@@ -93,7 +91,6 @@ export function TomojiGrid({
           onDelete={onDelete}
           onToggle={onToggle}
           onEdit={onEdit}
-          onDuplicate={onDuplicate}
           onArchive={onArchive}
           onRestore={onRestore}
           confirmBeforeDelete={confirmBeforeDelete}
