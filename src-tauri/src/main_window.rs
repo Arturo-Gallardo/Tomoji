@@ -1,8 +1,8 @@
 use tauri::{AppHandle, LogicalSize, Manager, Size, WebviewWindow, Window, WindowEvent};
 
 const MAIN_WINDOW_LABEL: &str = "main";
-const DEFAULT_MAIN_WIDTH: f64 = 1440.0;
-const DEFAULT_MAIN_HEIGHT: f64 = 900.0;
+const DEFAULT_MAIN_WIDTH: f64 = 1160.0;
+const DEFAULT_MAIN_HEIGHT: f64 = 832.0;
 const MIN_MAIN_WIDTH: f64 = 960.0;
 const MIN_MAIN_HEIGHT: f64 = 640.0;
 const MONITOR_MARGIN: f64 = 80.0;

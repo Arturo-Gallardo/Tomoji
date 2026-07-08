@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Tomoji",
-        "width": 1440,
-        "height": 900,
+        "width": 1160,
+        "height": 832,
         "center": true,
         "visible": false
       }
