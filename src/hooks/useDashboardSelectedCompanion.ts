@@ -25,10 +25,7 @@ function pickDefaultInstance(instances: CompanionInstance[]): string | null {
     return null;
   }
 
-  const enabled = instances.filter((instance) => instance.enabled);
-  const pool = enabled.length > 0 ? enabled : instances;
-
-  return pool.find((instance) => instance.id === "default")?.id ?? pool[0]?.id ?? null;
+  return instances.find((instance) => instance.id === "default")?.id ?? instances[0]?.id ?? null;
 }
 
 interface UseDashboardSelectedCompanionResult {
@@ -57,27 +54,24 @@ export function useDashboardSelectedCompanion(): UseDashboardSelectedCompanionRe
       return;
     }
 
-    const pool =
-      controllableInstances.length > 0 ? controllableInstances : instances;
-
-    if (pool.length === 0) {
+    if (controllableInstances.length === 0) {
       setSelectedInstanceIdState(null);
       return;
     }
 
     if (
       selectedInstanceId !== null &&
-      pool.some((instance) => instance.id === selectedInstanceId)
+      controllableInstances.some((instance) => instance.id === selectedInstanceId)
     ) {
       return;
     }
 
-    const fallback = pickDefaultInstance(pool);
+    const fallback = pickDefaultInstance(controllableInstances);
     if (fallback !== null) {
       setSelectedInstanceIdState(fallback);
       writeStoredSelection(fallback);
     }
-  }, [controllableInstances, instances, isLoading, selectedInstanceId]);
+  }, [controllableInstances, isLoading, selectedInstanceId]);
 
   const setSelectedInstanceId = useCallback((id: string) => {
     setSelectedInstanceIdState(id);
@@ -85,8 +79,10 @@ export function useDashboardSelectedCompanion(): UseDashboardSelectedCompanionRe
   }, []);
 
   const selectedInstance = useMemo(
-    () => instances.find((instance) => instance.id === selectedInstanceId) ?? null,
-    [instances, selectedInstanceId],
+    () =>
+      controllableInstances.find((instance) => instance.id === selectedInstanceId) ??
+      null,
+    [controllableInstances, selectedInstanceId],
   );
 
   return {
