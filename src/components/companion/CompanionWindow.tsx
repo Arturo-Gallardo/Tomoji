@@ -27,6 +27,8 @@ interface CompanionWindowInnerProps {
 }
 
 function CompanionWindowInner({ instance, registry }: CompanionWindowInnerProps) {
+  const effectiveScale = instance.scale * registry.baseDisplayScale;
+
   const toggleMute = useCallback(() => {
     void updateInstance(instance.id, { muted: instance.muted !== true });
   }, [instance.id, instance.muted]);
@@ -70,7 +72,7 @@ function CompanionWindowInner({ instance, registry }: CompanionWindowInnerProps)
   } = useCompanionBehavior({
     registry,
     characterId: instance.characterId,
-    scale: instance.scale,
+    scale: effectiveScale,
     initialAnchor: instance.position,
     dialogueSettings: instance.dialogueSettings,
     behaviorSettings: instance.behaviorSettings,
@@ -138,8 +140,8 @@ function CompanionWindowInner({ instance, registry }: CompanionWindowInnerProps)
     return null;
   }
 
-  const width = registry.spriteWidth * instance.scale;
-  const height = registry.spriteHeight * instance.scale;
+  const width = registry.spriteWidth * effectiveScale;
+  const height = registry.spriteHeight * effectiveScale;
 
   return (
     <div
@@ -157,7 +159,7 @@ function CompanionWindowInner({ instance, registry }: CompanionWindowInnerProps)
         action={displayAction}
         wallSide={wallSide}
         isDragging={behaviorState === "dragging"}
-        scale={instance.scale}
+        scale={effectiveScale}
         spriteWidth={registry.spriteWidth}
         spriteHeight={registry.spriteHeight}
         spriteAnchor={registry.getSpriteAnchor(displayAction)}

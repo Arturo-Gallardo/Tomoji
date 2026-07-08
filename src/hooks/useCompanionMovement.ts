@@ -141,23 +141,29 @@ export function useCompanionMovement(
   const getAnchorYOffset = useCallback((): number => {
     const lock = surfaceLockRef.current;
     if (lock && isUndersideLock(lock.kind)) {
-      return registry.getSpriteAnchor("grabCeiling").y * scale;
+      return registry.getUndersideAnchorYOffset() * scale;
     }
 
     return registry.getSpriteAnchor("idle").y * scale;
   }, [registry, scale]);
 
   const getAnchorXOffset = useCallback((): number => {
-    const baseOffset = (registry.spriteWidth / 2) * scale;
     const lock = surfaceLockRef.current;
 
     if (!lock || !isWallLock(lock.kind)) {
-      return baseOffset;
+      return (registry.spriteWidth / 2) * scale;
     }
 
+    const physicalWallKind = lock.kind === "wallLeft" ? "wallLeft" : "wallRight";
+    const offsetWallKind = isScreenEdgeHwnd(lock.hwnd)
+      ? physicalWallKind === "wallLeft"
+        ? "wallRight"
+        : "wallLeft"
+      : physicalWallKind;
+    const baseOffset = registry.getWallAnchorXOffset(offsetWallKind) * scale;
     const nudge = WALL_SPRITE_SURFACE_NUDGE * scale;
-    return lock.kind === "wallLeft" ? baseOffset - nudge : baseOffset + nudge;
-  }, [registry.spriteWidth, scale]);
+    return physicalWallKind === "wallLeft" ? baseOffset - nudge : baseOffset + nudge;
+  }, [registry, scale]);
   const undersideProbeYOffset =
     (registry.getSpriteAnchor("idle").y - registry.spriteHeight / 2) * scale;
 

@@ -31,8 +31,9 @@ export function useCompanionWindowSizeSync({
       return;
     }
 
-    const width = registry.spriteWidth * instance.scale;
-    const height = registry.spriteHeight * instance.scale;
+    const effectiveScale = instance.scale * registry.baseDisplayScale;
+    const width = registry.spriteWidth * effectiveScale;
+    const height = registry.spriteHeight * effectiveScale;
     const sizeKey = `${width}x${height}`;
 
     if (lastSizeKeyRef.current === sizeKey) {
@@ -51,6 +52,7 @@ export function useCompanionWindowSizeSync({
     getAnchorPosition,
     instance.scale,
     isReady,
+    registry.baseDisplayScale,
     registry.spriteHeight,
     registry.spriteWidth,
     setAnchorPosition,

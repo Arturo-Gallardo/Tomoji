@@ -8,6 +8,7 @@ import {
 import {
   getCharacter,
   isBuiltinCharacterId,
+  updateCharacterSurfaceAttachmentOffsets,
 } from "../../services/characterLibrary";
 import { openCharacterFolder } from "../../services/tomojiStorage";
 import { TomojiPageHeader } from "./TomojiPageHeader";
@@ -16,6 +17,7 @@ import type {
   BehaviorSettings,
   CharacterSource,
   RandomSitAction,
+  SurfaceAttachmentOffsets,
 } from "../../types/character";
 import type { CompanionInstance } from "../../types/companionInstance";
 
@@ -73,10 +75,23 @@ const RANDOM_SIT_OPTIONS: readonly {
 ];
 
 const SCALE_PRESETS = [
-  { label: "Tiny", value: 0.75 },
+  { label: "Tiny", value: 0.25 },
+  { label: "Small", value: 0.5 },
   { label: "Normal", value: 1 },
-  { label: "Big", value: 1.5 },
+  { label: "Big", value: 2 },
 ] as const;
+
+const DEFAULT_SURFACE_ATTACHMENT_OFFSETS: SurfaceAttachmentOffsets = {
+  wall: 0,
+  ceiling: 0,
+};
+
+function instanceBehavior(instance: CompanionInstance): BehaviorSettings {
+  return normalizeBehaviorSettings({
+    ...instance.behaviorSettings,
+    dialogueFrequency: instance.dialogueSettings.frequency,
+  });
+}
 
 const SPEED_PRESETS = [
   { label: "Calm", value: 0.75 },
@@ -222,14 +237,21 @@ export function CharacterSettingsEditor({
   const { settings } = useAppSettings();
   const isBuiltin = isBuiltinCharacterId(instance.characterId);
   const [name, setName] = useState(instance.name);
+  const [savedName, setSavedName] = useState(instance.name);
   const [scale, setScale] = useState(instance.scale);
-  const [behavior, setBehavior] = useState(() =>
-    normalizeBehaviorSettings({
-      ...instance.behaviorSettings,
-      dialogueFrequency: instance.dialogueSettings.frequency,
-    }),
+  const [savedScale, setSavedScale] = useState(instance.scale);
+  const [behavior, setBehavior] = useState(() => instanceBehavior(instance));
+  const [savedBehavior, setSavedBehavior] = useState(() =>
+    instanceBehavior(instance),
   );
   const [dialogue, setDialogue] = useState(instance.dialogueSettings);
+  const [savedDialogue, setSavedDialogue] = useState(instance.dialogueSettings);
+  const [surfaceOffsets, setSurfaceOffsets] = useState(
+    DEFAULT_SURFACE_ATTACHMENT_OFFSETS,
+  );
+  const [savedSurfaceOffsets, setSavedSurfaceOffsets] = useState(
+    DEFAULT_SURFACE_ATTACHMENT_OFFSETS,
+  );
   const [availableRandomSitActions, setAvailableRandomSitActions] =
     useState<RandomSitAction[] | null>(null);
   const [characterSource, setCharacterSource] = useState<CharacterSource | null>(
@@ -275,16 +297,11 @@ export function CharacterSettingsEditor({
   const floorShare = (weight: number) =>
     floorWeightTotal > 0 ? percent(weight / floorWeightTotal) : "0%";
   const hasUnsavedChanges =
-    name !== instance.name ||
-    scale !== instance.scale ||
-    JSON.stringify(behavior) !==
-      JSON.stringify(
-        normalizeBehaviorSettings({
-          ...instance.behaviorSettings,
-          dialogueFrequency: instance.dialogueSettings.frequency,
-        }),
-      ) ||
-    JSON.stringify(dialogue) !== JSON.stringify(instance.dialogueSettings);
+    name !== savedName ||
+    scale !== savedScale ||
+    JSON.stringify(behavior) !== JSON.stringify(savedBehavior) ||
+    JSON.stringify(dialogue) !== JSON.stringify(savedDialogue) ||
+    JSON.stringify(surfaceOffsets) !== JSON.stringify(savedSurfaceOffsets);
 
   const handleClose = () => {
     if (
@@ -368,6 +385,18 @@ export function CharacterSettingsEditor({
   };
 
   useEffect(() => {
+    const nextBehavior = instanceBehavior(instance);
+    setName(instance.name);
+    setSavedName(instance.name);
+    setScale(instance.scale);
+    setSavedScale(instance.scale);
+    setBehavior(nextBehavior);
+    setSavedBehavior(nextBehavior);
+    setDialogue(instance.dialogueSettings);
+    setSavedDialogue(instance.dialogueSettings);
+  }, [instance.id]);
+
+  useEffect(() => {
     let cancelled = false;
 
     void getCharacter(instance.characterId).then((entry) => {
@@ -377,6 +406,11 @@ export function CharacterSettingsEditor({
 
       setCharacterSource(entry?.source ?? null);
       const manifest = entry?.manifest;
+      const nextSurfaceOffsets =
+        manifest?.surfaceAttachmentOffsets ??
+        DEFAULT_SURFACE_ATTACHMENT_OFFSETS;
+      setSurfaceOffsets(nextSurfaceOffsets);
+      setSavedSurfaceOffsets(nextSurfaceOffsets);
       const available = RANDOM_SIT_ACTIONS.filter(
         (action) => {
           if (!manifest) {
@@ -442,6 +476,12 @@ export function CharacterSettingsEditor({
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      if (!isBuiltin) {
+        await updateCharacterSurfaceAttachmentOffsets(
+          instance.characterId,
+          surfaceOffsets,
+        );
+      }
       await onSave(instance.id, {
         name,
         scale,
@@ -451,7 +491,14 @@ export function CharacterSettingsEditor({
           frequency: behavior.dialogueFrequency,
         },
       });
-      onClose();
+      setSavedName(name);
+      setSavedScale(scale);
+      setSavedBehavior(behavior);
+      setSavedDialogue({
+        ...dialogue,
+        frequency: behavior.dialogueFrequency,
+      });
+      setSavedSurfaceOffsets(surfaceOffsets);
     } finally {
       setIsSaving(false);
     }
@@ -517,8 +564,8 @@ export function CharacterSettingsEditor({
             </span>
             <input
               type="range"
-              min={0.5}
-              max={4}
+              min={0.1}
+              max={8}
               step={0.05}
               value={scale}
               onChange={(event) => setScale(Number(event.target.value))}
@@ -540,6 +587,56 @@ export function CharacterSettingsEditor({
               Size changes the on-screen Tomoji window, not the source sprites.
             </p>
           </label>
+
+          {!isBuiltin ? (
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
+                Window attach offset
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-neutral-500">
+                Per-Tomoji tweak for wall grabs and underside crawls. Positive
+                values push the sprite farther outside the window edge.
+              </p>
+              <label className="mt-4 block">
+                <span className="text-xs font-bold text-neutral-400">
+                  Walls: {surfaceOffsets.wall}px
+                </span>
+                <input
+                  type="range"
+                  min={-80}
+                  max={80}
+                  step={1}
+                  value={surfaceOffsets.wall}
+                  onChange={(event) =>
+                    setSurfaceOffsets((current) => ({
+                      ...current,
+                      wall: Number(event.target.value),
+                    }))
+                  }
+                  className="mt-2 w-full"
+                />
+              </label>
+              <label className="mt-4 block">
+                <span className="text-xs font-bold text-neutral-400">
+                  Ceilings: {surfaceOffsets.ceiling}px
+                </span>
+                <input
+                  type="range"
+                  min={-80}
+                  max={80}
+                  step={1}
+                  value={surfaceOffsets.ceiling}
+                  onChange={(event) =>
+                    setSurfaceOffsets((current) => ({
+                      ...current,
+                      ceiling: Number(event.target.value),
+                    }))
+                  }
+                  className="mt-2 w-full"
+                />
+              </label>
+            </div>
+          ) : null}
 
           {canEditAnimations ? (
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-4">

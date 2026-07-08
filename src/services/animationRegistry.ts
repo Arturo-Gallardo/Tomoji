@@ -47,6 +47,9 @@ export interface AnimationRegistry {
   playbackStyle: AnimationPlaybackStyle;
   spriteWidth: number;
   spriteHeight: number;
+  baseDisplayScale: number;
+  getWallAnchorXOffset: (kind: "wallLeft" | "wallRight") => number;
+  getUndersideAnchorYOffset: () => number;
   getAnimation: (action: CompanionAction) => RuntimeAnimation;
   getSpriteAnchor: (action: CompanionAction) => SpriteAnchor;
   resolveDisplayAction: (
@@ -262,8 +265,10 @@ function importedSpriteAnchor(
 
 function graphSpriteAnchor(
   action: CompanionAction,
-  canvas: ShimejiAnimationGraph["spriteCanvas"],
+  graph: ShimejiAnimationGraph,
 ): SpriteAnchor {
+  const { spriteCanvas: canvas } = graph;
+
   if (action === "grabCeiling" || action === "climbCeiling") {
     return {
       x: canvas.anchor.x,
@@ -272,6 +277,17 @@ function graphSpriteAnchor(
   }
 
   return canvas.anchor;
+}
+
+function displayOffsetToSpriteOffset(
+  offset: number | undefined,
+  baseDisplayScale: number,
+): number {
+  if (offset === undefined || !Number.isFinite(offset)) {
+    return 0;
+  }
+
+  return offset / Math.max(baseDisplayScale, 0.001);
 }
 
 async function resolveCategoryFrames(
@@ -463,6 +479,20 @@ async function buildImportedRegistry(
     playbackStyle: manifest.playbackStyle ?? "sequential",
     spriteWidth: width,
     spriteHeight: height,
+    baseDisplayScale: 1,
+    getWallAnchorXOffset: (kind) => {
+      const offset = displayOffsetToSpriteOffset(
+        manifest.surfaceAttachmentOffsets?.wall,
+        1,
+      );
+      return kind === "wallLeft" ? width / 2 + offset : width / 2 - offset;
+    },
+    getUndersideAnchorYOffset: () =>
+      height * (UNDERSIDE_GRAB_ANCHOR.y / SPRITE_HEIGHT) -
+      displayOffsetToSpriteOffset(
+        manifest.surfaceAttachmentOffsets?.ceiling,
+        1,
+      ),
     getAnimation,
     getSpriteAnchor: (action) => importedSpriteAnchor(action, width, height),
     resolveDisplayAction,
@@ -645,13 +675,30 @@ async function buildShimejiGraphRegistry(
       hasFrames(action as CompanionAction),
     ),
   ];
+  const baseDisplayScale = graph.baseDisplayScale ?? 1;
+  const wallOffset = displayOffsetToSpriteOffset(
+    manifest.surfaceAttachmentOffsets?.wall,
+    baseDisplayScale,
+  );
+  const ceilingOffset = displayOffsetToSpriteOffset(
+    manifest.surfaceAttachmentOffsets?.ceiling,
+    baseDisplayScale,
+  );
 
   return {
     playbackStyle: "sequential",
     spriteWidth: graph.spriteCanvas.width,
     spriteHeight: graph.spriteCanvas.height,
+    baseDisplayScale,
+    getWallAnchorXOffset: (kind) =>
+      kind === "wallLeft"
+        ? graph.spriteCanvas.width / 2 + wallOffset
+        : graph.spriteCanvas.width / 2 - wallOffset,
+    getUndersideAnchorYOffset: () =>
+      graph.spriteCanvas.height * (UNDERSIDE_GRAB_ANCHOR.y / SPRITE_HEIGHT) -
+      ceilingOffset,
     getAnimation,
-    getSpriteAnchor: (action) => graphSpriteAnchor(action, graph.spriteCanvas),
+    getSpriteAnchor: (action) => graphSpriteAnchor(action, graph),
     resolveDisplayAction,
     animateGrabbed: false,
     getGrabbedLeanFrame: (tier) => {

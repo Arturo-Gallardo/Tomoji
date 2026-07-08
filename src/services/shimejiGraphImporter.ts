@@ -41,8 +41,8 @@ import type {
 } from "../types/shimejiGraph";
 
 const DEFAULT_FRAME_SIZE = 128;
-// android packs use large padded mobile canvases; normalize runtime sprites
-// so imported pets start near the same desktop size as classic shimejis.
+// android packs use large padded mobile canvases; start them near desktop size
+// without baking the downscale into sprite PNGs.
 const ANDROID_TARGET_VISIBLE_HEIGHT = 120;
 // xml anchors are author data, but some packs put the anchor at the padded
 // canvas bottom. clamp only when the gap is obvious.
@@ -94,7 +94,6 @@ export interface ShimejiGraphDraft {
   graph: ShimejiAnimationGraph;
   scale: number;
   speed: number;
-  runtimeSpriteScale?: number;
 }
 
 export interface ShimejiGraphImportScan {
@@ -862,33 +861,7 @@ async function buildCanvasMetrics(
   };
 }
 
-function scaleCanvasMetrics(
-  canvas: {
-    width: number;
-    height: number;
-    anchor: ShimejiPoint;
-  },
-  scale: number,
-): {
-  width: number;
-  height: number;
-  anchor: ShimejiPoint;
-} {
-  if (scale >= 1) {
-    return canvas;
-  }
-
-  return {
-    width: Math.max(1, Math.ceil(canvas.width * scale)),
-    height: Math.max(1, Math.ceil(canvas.height * scale)),
-    anchor: {
-      x: Math.max(1, Math.ceil(canvas.anchor.x * scale)),
-      y: Math.max(1, Math.ceil(canvas.anchor.y * scale)),
-    },
-  };
-}
-
-function androidRuntimeSpriteScale(canvasHeight: number): number {
+function androidDefaultSpriteScale(canvasHeight: number): number {
   if (canvasHeight <= ANDROID_TARGET_VISIBLE_HEIGHT) {
     return 1;
   }
@@ -958,13 +931,12 @@ async function writeNormalizedFrame(
   canvasAnchor: ShimejiPoint,
   width: number,
   height: number,
-  renderScale = 1,
 ): Promise<void> {
   const bitmap = await loadImageBitmap(sourcePath);
   try {
     const bounds = bitmapContentBounds(bitmap);
-    const targetWidth = Math.max(1, Math.round(bounds.width * renderScale));
-    const targetHeight = Math.max(1, Math.round(bounds.height * renderScale));
+    const targetWidth = bounds.width;
+    const targetHeight = bounds.height;
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -973,14 +945,10 @@ async function writeNormalizedFrame(
       throw new Error("2d canvas context unavailable");
     }
 
-    context.imageSmoothingEnabled = renderScale < 1;
-    if (renderScale < 1) {
-      context.imageSmoothingQuality = "high";
-    }
     context.clearRect(0, 0, width, height);
     const adjustedAnchor = {
-      x: (imageAnchor.x - bounds.x) * renderScale,
-      y: (imageAnchor.y - bounds.y) * renderScale,
+      x: imageAnchor.x - bounds.x,
+      y: imageAnchor.y - bounds.y,
     };
     const x = Math.min(
       Math.max(0, Math.round(canvasAnchor.x - adjustedAnchor.x)),
@@ -1420,8 +1388,8 @@ async function buildAndroidGraphDraftFromFolder(
       ? allUsedPoses
       : Array.from(parsedActions.values()).flatMap((action) => action.poses),
   );
-  const runtimeSpriteScale = androidRuntimeSpriteScale(rawCanvas.height);
-  const canvas = scaleCanvasMetrics(rawCanvas, runtimeSpriteScale);
+  const defaultScale = androidDefaultSpriteScale(rawCanvas.height);
+  const canvas = rawCanvas;
 
   if (report.missingImages.length > 0) {
     report.issues.push({
@@ -1429,10 +1397,10 @@ async function buildAndroidGraphDraftFromFolder(
       message: `${report.missingImages.length} Android sprite reference(s) could not be found.`,
     });
   }
-  if (runtimeSpriteScale < 1) {
+  if (defaultScale < 1) {
     report.issues.push({
       severity: "info",
-      message: `Android sprites were normalized from ${rawCanvas.height}px to about ${canvas.height}px tall so this Tomoji starts at desktop size.`,
+      message: `Android sprites use ${defaultScale.toFixed(2)}x as their 1x display size so this Tomoji fits desktop, while full-resolution frames are preserved for clean scaling.`,
     });
   }
 
@@ -1444,12 +1412,12 @@ async function buildAndroidGraphDraftFromFolder(
       behaviors: {},
       defaultActions,
       menuActions,
+      baseDisplayScale: defaultScale,
       spriteCanvas: canvas,
       importReport: report,
     },
     scale: 1,
     speed: averageAndroidWalkSpeed(parsedActions, defaultActions),
-    runtimeSpriteScale,
   };
 }
 
@@ -1545,7 +1513,6 @@ async function writeGraphSprites(
   const sourceToOriginal = new Map<string, string>();
   const usedNames = new Set<string>();
   const poses = Object.values(draft.graph.actions).flatMap((action) => action.poses);
-  const renderScale = draft.runtimeSpriteScale ?? 1;
 
   for (let index = 0; index < poses.length; index += 1) {
     const pose = poses[index];
@@ -1571,7 +1538,6 @@ async function writeGraphSprites(
       draft.graph.spriteCanvas.anchor,
       draft.graph.spriteCanvas.width,
       draft.graph.spriteCanvas.height,
-      renderScale,
     );
     sourceToRuntime.set(pose.source, `sprites/shimeji/${filename}`);
 
@@ -1589,13 +1555,6 @@ async function writeGraphSprites(
           ...pose,
           src: pose.source ? sourceToRuntime.get(pose.source) ?? pose.src : pose.src,
           source: pose.source ? sourceToOriginal.get(pose.source) : undefined,
-          imageAnchor:
-            renderScale < 1
-              ? {
-                  x: pose.imageAnchor.x * renderScale,
-                  y: pose.imageAnchor.y * renderScale,
-                }
-              : pose.imageAnchor,
         })),
       },
     ]),

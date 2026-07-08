@@ -142,6 +142,13 @@ export interface DialogueSettings {
   frequency: number;
 }
 
+export interface SurfaceAttachmentOffsets {
+  // positive pushes wall grabs farther outside the window edge
+  wall: number;
+  // positive pushes underside crawls farther below the window
+  ceiling: number;
+}
+
 export type AnimationPlaybackStyle = "shimeji" | "sequential";
 export type AnimationSystem = "legacySlots" | "shimejiGraph";
 
@@ -162,6 +169,7 @@ export interface CharacterManifest {
   sourceAnimations?: Partial<Record<AnimationCategory, AnimationDefinition>>;
   behaviorSettings: BehaviorSettings;
   dialogueSettings: DialogueSettings;
+  surfaceAttachmentOffsets?: SurfaceAttachmentOffsets;
   // shimeji = classic walk/climb index cycle; sequential = 1→2→… loop
   playbackStyle?: AnimationPlaybackStyle;
   // bumped when the on-disk layout changes so older installs can migrate

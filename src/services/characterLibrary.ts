@@ -4,6 +4,7 @@ import type {
   CharacterLibraryEntry,
   CharacterManifest,
   CharacterSource,
+  SurfaceAttachmentOffsets,
 } from "../types/character";
 import {
   BUILTIN_CHARACTER_ID,
@@ -392,6 +393,34 @@ export async function addCharacter(
     entry,
   ];
   await writeStoredCharacters(next);
+}
+
+export async function updateCharacterSurfaceAttachmentOffsets(
+  characterId: string,
+  offsets: SurfaceAttachmentOffsets,
+): Promise<void> {
+  if (isBuiltinCharacterId(characterId)) {
+    return;
+  }
+
+  const stored = await readStoredCharacters();
+  const entry = stored.find((character) => character.manifest.id === characterId);
+  if (!entry) {
+    return;
+  }
+
+  const manifest = {
+    ...entry.manifest,
+    surfaceAttachmentOffsets: offsets,
+  };
+  await writeJson(await characterManifestPath(characterId), manifest);
+  await writeStoredCharacters(
+    stored.map((character) =>
+      character.manifest.id === characterId
+        ? { ...entry, manifest }
+        : character,
+    ),
+  );
 }
 
 export async function removeCharacter(id: string): Promise<void> {

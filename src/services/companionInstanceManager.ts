@@ -324,8 +324,10 @@ async function spawnInstanceWindow(instance: CompanionInstance): Promise<void> {
     throw new Error(`character not found: ${instance.characterId}`);
   }
   const { manifest } = character;
-  const width = manifest.frameWidth * instance.scale;
-  const height = manifest.frameHeight * instance.scale;
+  const effectiveScale =
+    instance.scale * (manifest.shimejiGraph?.baseDisplayScale ?? 1);
+  const width = manifest.frameWidth * effectiveScale;
+  const height = manifest.frameHeight * effectiveScale;
   const windowX = instance.position.x - width / 2;
   const windowY = instance.position.y - height;
   await createCompanionInstanceWindow(instance.id, windowX, windowY, width, height);

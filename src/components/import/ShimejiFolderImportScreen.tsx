@@ -150,9 +150,9 @@ function ImportPreview({ draft }: { draft: ShimejiGraphDraft }) {
           Imported: {draft.graph.importReport.actionsParsed} actions,{" "}
           {draft.graph.importReport.posesParsed} poses
         </p>
-        {draft.runtimeSpriteScale && draft.runtimeSpriteScale < 1 ? (
+        {draft.graph.baseDisplayScale && draft.graph.baseDisplayScale < 1 ? (
           <p className="mt-1 text-emerald-300">
-            Android sprites normalized to desktop size.
+            1x uses a fitted desktop size, with full-resolution sprites preserved.
           </p>
         ) : null}
       </div>

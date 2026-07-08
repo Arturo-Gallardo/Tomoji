@@ -83,6 +83,9 @@ export interface ShimejiAnimationGraph {
   behaviors: Record<string, ShimejiGraphBehavior>;
   defaultActions: Partial<Record<ShimejiActionIntent, string>>;
   menuActions: ShimejiMenuAction[];
+  // internal multiplier for oversized source canvases. user-facing scale stays
+  // relative to this so 1x remains the sane default size.
+  baseDisplayScale?: number;
   spriteCanvas: {
     width: number;
     height: number;
