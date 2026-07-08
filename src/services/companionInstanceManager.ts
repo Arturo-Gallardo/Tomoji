@@ -4,7 +4,6 @@ import type { CharacterManifest } from "../types/character";
 import { getDesktopBounds } from "./companionApi";
 import {
   createCompanionInstanceWindow,
-  createCompanionSpeechInstanceWindow,
   destroyCompanionInstanceWindow,
 } from "./companionApi";
 import type { CharacterLibraryEntry } from "../types/character";
@@ -330,8 +329,6 @@ async function spawnInstanceWindow(instance: CompanionInstance): Promise<void> {
   const windowX = instance.position.x - width / 2;
   const windowY = instance.position.y - height;
   await createCompanionInstanceWindow(instance.id, windowX, windowY, width, height);
-  // speech window is its own invoke so we don't nest two webview builds
-  await createCompanionSpeechInstanceWindow(instance.id);
 }
 
 export async function addInstance(

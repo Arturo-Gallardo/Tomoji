@@ -99,10 +99,8 @@ fn update_speech_state(id: &str, update: impl FnOnce(&mut SpeechWindowState)) {
     }
 }
 
-// builds the hidden speech window for an instance if it isn't there yet.
-// pre-created alongside the companion so the bubble webview is mounted and
-// listening before the first line is spoken (otherwise it misses the content
-// event and never resizes past its 32px initial size).
+// builds the speech window only when needed. first-speech text is stored before
+// lazy creation so the webview can recover it even if it mounts after the event.
 pub fn ensure_speech_window(app: &AppHandle, id: &str) -> Result<(), String> {
     let label = speech_window_label(id);
     if app.get_webview_window(&label).is_some() {
@@ -376,14 +374,14 @@ pub async fn show_companion_speech(
         .ok_or_else(|| "speech requested from a non-companion window".to_string())?;
 
     let app = window.app_handle();
-    ensure_speech_window(app, &id)?;
-
     {
         let mut pending = PENDING_SPEECH_TEXT
             .lock()
             .map_err(|error| format!("failed to store pending speech content: {error}"))?;
         pending.insert(id.clone(), text.clone());
     }
+
+    ensure_speech_window(app, &id)?;
 
     update_speech_state(&id, |state| {
         state.visible = true;
@@ -432,8 +430,8 @@ pub fn hide_companion_speech_for(app: &AppHandle, id: &str) -> Result<(), String
 
     if let Some(window) = app.get_webview_window(&speech_window_label(id)) {
         window
-            .hide()
-            .map_err(|error| format!("failed to hide companion speech window: {error}"))?;
+            .close()
+            .map_err(|error| format!("failed to close companion speech window: {error}"))?;
     }
 
     Ok(())
