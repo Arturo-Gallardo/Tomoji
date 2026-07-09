@@ -1,4 +1,4 @@
-get rid of old deprecated code and if possible have better structure with more comments
+- get rid of old deprecated code and if possible have better structure with more comments
 
 redo ui - tomodachi life style
 
