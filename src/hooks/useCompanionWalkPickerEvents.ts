@@ -5,6 +5,7 @@ import {
 } from "../services/companionWalkPickerApi";
 
 interface UseCompanionWalkPickerEventsOptions {
+  instanceId?: string;
   onSelectWalkTarget: (anchorX: number) => void;
   onSelectFloorCrawlTarget: (anchorX: number) => void;
   onSelectCrawlTarget: (anchorX: number) => void;

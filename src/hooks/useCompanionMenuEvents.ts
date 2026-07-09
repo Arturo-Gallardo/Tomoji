@@ -5,6 +5,7 @@ import type { CompanionMenuAction } from "../types/companionMenu";
 import type { CompanionMenuAnimationAction } from "../types/companionMenu";
 
 interface UseCompanionMenuEventsOptions {
+  instanceId?: string;
   onTurnAround: () => void;
   onPlayAnimation: (action: CompanionMenuAnimationAction) => void;
   onToggleFreeze: () => void;

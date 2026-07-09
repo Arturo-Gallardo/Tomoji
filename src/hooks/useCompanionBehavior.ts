@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { showCompanionMenu } from "../services/companionMenuApi";
 import type { AnimationRegistry } from "../services/animationRegistry";
 import type { DialogueSettings, BehaviorSettings } from "../types/character";
@@ -14,9 +21,11 @@ import { usesTitleBarSitAnchor } from "../animations/beyondBirthday";
 import {
   type AnchorClampMode,
   type CompanionBehaviorState,
+  type DesktopBounds,
   type FallVelocity,
   type ScreenPosition,
   type SurfaceLock,
+  type WindowSurface,
 } from "../types/companion";
 import { toPhysicalScreenPosition } from "../utils/screenCoordinates";
 import { DIALOGUE_DISPLAY_MS } from "../utils/dialogueDuration";
@@ -88,6 +97,11 @@ interface UseCompanionBehaviorResult {
   facing: FacingDirection;
   behaviorState: CompanionBehaviorState;
   dialogueText: string | null;
+  desktopBounds: DesktopBounds | null;
+  anchorX: number;
+  anchorY: number;
+  anchorXOffset: number;
+  anchorYOffset: number;
   isReady: boolean;
   showTitleBarLockHint: boolean;
   wallSide: WindowWallSide | null;
@@ -121,7 +135,11 @@ interface UseCompanionBehaviorOptions {
   registry: AnimationRegistry;
   characterId: string;
   scale: number;
+  instanceId?: string;
   initialAnchor?: ScreenPosition;
+  positionMode?: "window" | "overlay";
+  sharedSurfaces?: WindowSurface[];
+  sharedSurfacesRef?: RefObject<WindowSurface[]>;
   dialogueSettings?: DialogueSettings;
   behaviorSettings?: BehaviorSettings;
   isMuted?: boolean;
@@ -132,6 +150,9 @@ export function useCompanionBehavior({
   characterId,
   scale,
   initialAnchor,
+  positionMode,
+  sharedSurfaces,
+  sharedSurfacesRef,
   dialogueSettings,
   behaviorSettings,
   isMuted = false,
@@ -149,8 +170,11 @@ export function useCompanionBehavior({
   const usesTitleBarSitAnchorRef = useRef(false);
 
   const {
+    desktopBounds,
     anchorX,
     anchorY,
+    anchorXOffset,
+    anchorYOffset,
     isReady,
     surfaceLock,
     isWallLocked,
@@ -172,6 +196,9 @@ export function useCompanionBehavior({
     registry,
     scale,
     initialAnchor,
+    positionMode,
+    sharedSurfaces,
+    sharedSurfacesRef,
     onSurfaceLockLost: () => {
       handleSurfaceLockLostRef.current();
     },
@@ -1509,6 +1536,11 @@ export function useCompanionBehavior({
     facing,
     behaviorState,
     dialogueText,
+    desktopBounds,
+    anchorX,
+    anchorY,
+    anchorXOffset,
+    anchorYOffset,
     isReady,
     showTitleBarLockHint,
     wallSide,

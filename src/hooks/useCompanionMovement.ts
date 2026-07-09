@@ -50,6 +50,9 @@ interface UseCompanionMovementOptions {
   registry: AnimationRegistry;
   scale: number;
   initialAnchor?: ScreenPosition;
+  positionMode?: "window" | "overlay";
+  sharedSurfaces?: WindowSurface[];
+  sharedSurfacesRef?: RefObject<WindowSurface[]>;
   onSurfaceLockLost?: () => void;
   usesTitleBarSitAnchorRef?: RefObject<boolean>;
 }
@@ -58,6 +61,8 @@ interface UseCompanionMovementResult {
   desktopBounds: DesktopBounds | null;
   anchorX: number;
   anchorY: number;
+  anchorXOffset: number;
+  anchorYOffset: number;
   isReady: boolean;
   surfaceLock: SurfaceLock | null;
   isSurfaceLocked: boolean;
@@ -110,6 +115,9 @@ export function useCompanionMovement(
     registry,
     scale,
     initialAnchor,
+    positionMode = "window",
+    sharedSurfaces,
+    sharedSurfacesRef,
     onSurfaceLockLost,
     usesTitleBarSitAnchorRef,
   } = options;
@@ -134,9 +142,11 @@ export function useCompanionMovement(
   const lockedSurfaceCacheRef = useRef<WindowSurface | null>(null);
   const initialAnchorRef = useRef(initialAnchor);
 
-  const { surfaces, surfacesRef } = useCompanionWindowSurfaces(
-    isReady && surfaceLock !== null,
+  const polledWindowSurfaces = useCompanionWindowSurfaces(
+    isReady && surfaceLock !== null && sharedSurfaces === undefined,
   );
+  const surfaces = sharedSurfaces ?? polledWindowSurfaces.surfaces;
+  const surfacesRef = sharedSurfacesRef ?? polledWindowSurfaces.surfacesRef;
 
   const getAnchorYOffset = useCallback((): number => {
     const lock = surfaceLockRef.current;
@@ -350,11 +360,13 @@ export function useCompanionMovement(
       setAnchorXState(nextPosition.x);
       setAnchorYState(nextPosition.y);
 
-      await setCompanionPosition(
-        nextPosition,
-        getAnchorYOffset(),
-        getAnchorXOffset(),
-      );
+      if (positionMode === "window") {
+        await setCompanionPosition(
+          nextPosition,
+          getAnchorYOffset(),
+          getAnchorXOffset(),
+        );
+      }
     },
     [
       clampGroundedPosition,
@@ -362,6 +374,7 @@ export function useCompanionMovement(
       clampToWallsPosition,
       getAnchorXOffset,
       getAnchorYOffset,
+      positionMode,
       refreshDesktopBoundsIfNeeded,
     ],
   );
@@ -396,12 +409,14 @@ export function useCompanionMovement(
 
     anchorRef.current = nextPosition;
     setAnchorYState(nextPosition.y);
-    void setCompanionPosition(
-      nextPosition,
-      registry.getSpriteAnchor("idle").y * scale,
-      getAnchorXOffset(),
-    );
-  }, [clearSurfaceLock, getAnchorXOffset, registry, scale]);
+    if (positionMode === "window") {
+      void setCompanionPosition(
+        nextPosition,
+        registry.getSpriteAnchor("idle").y * scale,
+        getAnchorXOffset(),
+      );
+    }
+  }, [clearSurfaceLock, getAnchorXOffset, positionMode, registry, scale]);
 
   const findSurfaceLockAt = useCallback(
     async (x: number, y: number): Promise<SurfaceLockCandidate | null> => {
@@ -647,6 +662,8 @@ export function useCompanionMovement(
     desktopBounds,
     anchorX,
     anchorY,
+    anchorXOffset: getAnchorXOffset(),
+    anchorYOffset: getAnchorYOffset(),
     isReady,
     surfaceLock,
     isSurfaceLocked: surfaceLock !== null,

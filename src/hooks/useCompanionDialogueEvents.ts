@@ -5,6 +5,7 @@ import {
 } from "../services/companionDialogue";
 
 interface UseCompanionDialogueEventsOptions {
+  instanceId?: string;
   startDialogue: (text: string) => void;
   dismissDialogue: () => void;
 }

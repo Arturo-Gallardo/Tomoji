@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { listenSitToggle } from "../services/companionSit";
 
 interface UseCompanionSitEventsOptions {
+  instanceId?: string;
   toggleSit: () => void;
 }
 

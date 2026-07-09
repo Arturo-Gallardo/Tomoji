@@ -1,10 +1,6 @@
-- should still be able to be picked up even when getting up
+get rid of old deprecated code and if possible have better structure with more comments
 
-- add auto getting on walls and ceiling of screen
-
-- android imports keep looping animation when climbing or crawling on a window
-
-redo ui - tamagotchi style
+redo ui - tomodachi life style
 
 add stripe
 

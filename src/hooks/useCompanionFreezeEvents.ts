@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { listenFreezeToggle } from "../services/companionFreeze";
 
 interface UseCompanionFreezeEventsOptions {
+  instanceId?: string;
   toggleFreeze: () => void;
 }
 

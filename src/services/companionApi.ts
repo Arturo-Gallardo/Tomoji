@@ -9,6 +9,13 @@ import type {
   WorkArea,
 } from "../types/companion";
 
+export interface CompanionOverlayHitRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export async function getWorkArea(): Promise<WorkArea> {
   return invoke<WorkArea>("get_work_area");
 }
@@ -35,6 +42,16 @@ export async function setCompanionWindowSize(
   height: number,
 ): Promise<void> {
   await invoke("set_companion_window_size", { width, height });
+}
+
+export async function setCompanionOverlayHitRegions(
+  regions: CompanionOverlayHitRegion[],
+  captureAll: boolean,
+): Promise<void> {
+  await invoke("set_companion_overlay_hit_regions", {
+    regions,
+    captureAll,
+  });
 }
 
 // spawns (or reveals) the OS window for a single companion instance.
