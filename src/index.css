@@ -105,6 +105,14 @@ html.walk-picker-root #root {
   animation: companion-speech-out-right 180ms ease-in forwards;
 }
 
+.tomoji-card-toggle-pop {
+  animation: tomoji-card-toggle-pop 180ms ease-out;
+}
+
+.tomoji-card-toggle-flash {
+  animation: tomoji-card-toggle-flash 220ms ease-out forwards;
+}
+
 @keyframes companion-speech-in-above {
   from {
     opacity: 0;
@@ -114,6 +122,43 @@ html.walk-picker-root #root {
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tomoji-card-toggle-pop {
+  0% {
+    transform: scale(0.985) translateY(1px);
+  }
+
+  55% {
+    transform: scale(1.015) translateY(-1px);
+  }
+
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tomoji-card-toggle-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+
+  35% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tomoji-card-toggle-pop,
+  .tomoji-card-toggle-flash {
+    animation: none;
   }
 }
 

@@ -16,7 +16,7 @@ use companion::{
 use data_folder::{
     get_characters_folder_fingerprint, open_character_folder, open_characters_folder,
 };
-use main_window::{configure_main_window, handle_window_event};
+use main_window::{configure_main_window, handle_window_event, show_dashboard};
 use tray::create_tray;
 
 const AUTOSTART_ARG: &str = "--autostart";
@@ -27,6 +27,11 @@ pub fn run() {
         std::env::args_os().any(|argument| argument == std::ffi::OsStr::new(AUTOSTART_ARG));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(
+            |app, _args, _cwd| {
+                show_dashboard(app);
+            },
+        ))
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .arg(AUTOSTART_ARG)

@@ -294,7 +294,7 @@ export function TomojisView() {
       {settings?.showHelperTips !== false ? (
         <>
           <p className="mb-4 max-w-xl text-sm text-neutral-400">
-            Toggle companions on or off, edit behavior, or import new
+            Click a card to toggle it on or off, edit behavior, or import new
             characters. Drag cards to rearrange.
           </p>
           {!isLoading && activeInstances.length === 0 ? (

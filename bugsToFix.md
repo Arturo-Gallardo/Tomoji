@@ -1,6 +1,8 @@
 - get rid of old deprecated code and if possible have better structure with more comments
 
-redo ui - tomodachi life style
+if you open it through the taskbar it opens a second one
+
+redo ui - tomodachi life style`
 
 add stripe
 

@@ -59,6 +59,13 @@ function TomojiCardSpriteLoader({ characterId }: { characterId: string }) {
   return <TomojiCardSprite registry={registry} />;
 }
 
+function isCardActionTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest("button, a, input, select, textarea, [data-card-action]") !== null
+  );
+}
+
 export function TomojiCard({
   instance,
   reorderable = false,
@@ -76,11 +83,13 @@ export function TomojiCard({
   confirmBeforeDelete = true,
 }: TomojiCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [toggleAnimationKey, setToggleAnimationKey] = useState(0);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const isBuiltin = isBuiltinCharacterId(instance.characterId);
   const canDelete = !isBuiltin;
   const canArchive = onArchive !== undefined;
   const isArchived = instance.archived === true;
+  const canToggle = !isArchived;
 
   const handleDelete = () => {
     if (
@@ -109,6 +118,15 @@ export function TomojiCard({
   const handleRestore = () => {
     onRestore?.(instance.id);
     setIsMenuOpen(false);
+  };
+
+  const toggleInstance = () => {
+    if (!canToggle) {
+      return;
+    }
+
+    setToggleAnimationKey((key) => key + 1);
+    onToggle(instance.id, !instance.enabled);
   };
 
   useEffect(() => {
@@ -148,7 +166,7 @@ export function TomojiCard({
           return;
         }
         const target = event.target;
-        if (target instanceof Element && target.closest("button")) {
+        if (isCardActionTarget(target)) {
           event.preventDefault();
           return;
         }
@@ -171,16 +189,52 @@ export function TomojiCard({
         event.preventDefault();
         onDrop?.(instance.id);
       }}
-      className={`relative flex aspect-square w-full max-w-[11rem] flex-col items-center justify-between rounded-2xl border px-4 py-4 transition-opacity ${
+      onClick={(event) => {
+        if (isCardActionTarget(event.target)) {
+          return;
+        }
+
+        toggleInstance();
+      }}
+      onKeyDown={(event) => {
+        if (
+          isCardActionTarget(event.target) ||
+          (event.key !== "Enter" && event.key !== " ")
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        toggleInstance();
+      }}
+      tabIndex={canToggle ? 0 : undefined}
+      aria-label={`${instance.name}: ${instance.enabled ? "turn off" : "turn on"}`}
+      className={`relative flex aspect-square w-full max-w-[11rem] flex-col items-center justify-between overflow-hidden rounded-2xl border px-4 py-4 transition-[transform,border-color,box-shadow,background-color,opacity] duration-150 ease-out active:scale-[0.995] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
         isDragging ? "opacity-40" : ""
       } ${isDropTarget ? "ring-2 ring-white/60" : ""} ${
-        instance.enabled && !isArchived ? "border-white" : "border-neutral-500/80"
-      } bg-neutral-950 ${reorderable ? "cursor-grab active:cursor-grabbing" : ""}`}
+        instance.enabled && !isArchived
+          ? "border-white bg-neutral-900/60 shadow-[0_10px_28px_-24px_rgba(255,255,255,0.55)]"
+          : "border-neutral-500/80 bg-neutral-950"
+      } ${
+        canToggle
+          ? "cursor-pointer hover:-translate-y-0.5 hover:border-white/80 hover:shadow-[0_10px_28px_-24px_rgba(255,255,255,0.45)]"
+          : "cursor-default"
+      }`}
     >
+      {toggleAnimationKey > 0 ? (
+        <span
+          key={toggleAnimationKey}
+          className={`tomoji-card-toggle-flash pointer-events-none absolute inset-0 rounded-2xl ${
+            instance.enabled && !isArchived ? "bg-white/5" : "bg-neutral-400/5"
+          }`}
+          aria-hidden
+        />
+      ) : null}
+
       <div className="flex w-full items-center justify-between">
         <button
           type="button"
-          onClick={() => onToggle(instance.id, !instance.enabled)}
+          onClick={toggleInstance}
           disabled={isArchived}
           className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
             instance.enabled && !isArchived
@@ -215,7 +269,12 @@ export function TomojiCard({
         </div>
       </div>
 
-      <div className="flex h-[72px] items-center justify-center">
+      <div
+        key={toggleAnimationKey}
+        className={`flex h-[72px] items-center justify-center ${
+          toggleAnimationKey > 0 ? "tomoji-card-toggle-pop" : ""
+        }`}
+      >
         <TomojiCardSpriteLoader characterId={instance.characterId} />
       </div>
 
@@ -226,6 +285,7 @@ export function TomojiCard({
       {isMenuOpen ? (
         <div
           ref={menuRef}
+          data-card-action
           onPointerDown={(event) => event.stopPropagation()}
           className="absolute right-2 top-9 z-10 w-36 rounded-lg border border-neutral-700 bg-neutral-950 p-1 shadow-xl"
         >
