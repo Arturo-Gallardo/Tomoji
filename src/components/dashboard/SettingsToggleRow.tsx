@@ -36,7 +36,7 @@ export function SettingsToggleRow({
 
       <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
         <span
-          className={`island-badge ${checked ? "island-badge--active" : ""} ${
+          className={`island-badge ${checked ? "bg-island-orange" : ""} ${
             disabled ? "border-dashed" : ""
           }`}
         >

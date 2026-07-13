@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppSettings } from "../../hooks/useAppSettings";
 import { useCompanionInstances } from "../../hooks/useCompanionInstances";
 import { openCharactersFolder } from "../../services/tomojiStorage";
@@ -110,6 +110,15 @@ export function TomojisView() {
       `${instance.name} ${instance.characterId}`.toLowerCase().includes(query),
     );
   }, [activeInstances, searchTerm]);
+
+  useEffect(() => {
+    if (lastImportMessage === null) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setLastImportMessage(null), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [lastImportMessage]);
 
   const handleImported = async (characterId: string) => {
     await addCompanion(characterId);
@@ -301,11 +310,6 @@ export function TomojisView() {
             className="w-full rounded-xl border-2 border-island-ink/30 bg-island-paper px-3 py-2 text-sm font-medium text-island-ink outline-none placeholder:text-island-muted/70 focus:border-island-ink"
           />
         </label>
-        {lastImportMessage ? (
-          <p className="rounded-md border border-island-ink/20 bg-island-orange/30 px-3 py-1.5 text-xs font-semibold text-island-ink" role="status">
-            {lastImportMessage}
-          </p>
-        ) : null}
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -354,6 +358,14 @@ export function TomojisView() {
           onImportTomoji={() => setFlow("importTomoji")}
           onImportShimeji={() => setFlow("importShimeji")}
         />
+      ) : null}
+
+      {lastImportMessage ? (
+        <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center p-6">
+          <p className="island-dialog max-w-sm px-5 py-3 text-center text-sm font-extrabold text-island-ink" role="status">
+            {lastImportMessage}
+          </p>
+        </div>
       ) : null}
     </TomojiPageLayout>
   );

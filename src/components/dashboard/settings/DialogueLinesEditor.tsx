@@ -30,7 +30,7 @@ export function DialogueLinesEditor({
               Dialogue lines
             </h2>
             <p className="mt-1 text-sm font-medium leading-relaxed text-island-muted">
-              Give this Tomoji a few things to say during island life.
+              Give this Tomoji a few things to say while they are around.
             </p>
           </div>
         </div>

@@ -536,6 +536,29 @@ button:not(:disabled),
   background: var(--color-island-custard);
 }
 
+/* legacy Shimeji import screens use old neutral utility classes; keep every
+   nested imported-action panel in the dashboard’s island palette. */
+.shimeji-import-screen [class*="border-neutral"] {
+  border-color: rgba(24, 52, 79, 0.28) !important;
+}
+
+.shimeji-import-screen [class*="bg-neutral"],
+.shimeji-import-screen [class*="bg-black"] {
+  background-color: var(--color-island-paper) !important;
+}
+
+.shimeji-import-screen [class*="text-neutral"],
+.shimeji-import-screen [class*="text-white"] {
+  color: var(--color-island-muted) !important;
+}
+
+.shimeji-import-screen h1,
+.shimeji-import-screen h2,
+.shimeji-import-screen h3,
+.shimeji-import-screen [class*="font-bold"] {
+  color: var(--color-island-ink);
+}
+
 .island-tooltip {
   border: 1.5px solid var(--color-island-ink);
   border-radius: 0.55rem;

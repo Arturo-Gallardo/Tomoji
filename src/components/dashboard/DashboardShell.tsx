@@ -82,11 +82,22 @@ export function DashboardShell() {
                   </div>
                 ) : (
                   <div className="max-w-sm text-center">
-                    <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full border-2 border-island-ink/25 bg-island-custard" aria-hidden>
-                      <span className="block h-5 w-5 rounded-full border-2 border-island-ink/50 bg-island-orange" />
-                    </span>
+                    <svg
+                      viewBox="0 0 64 64"
+                      className="mx-auto mb-5 h-16 w-16 text-island-ink"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      aria-hidden
+                    >
+                      <circle cx="32" cy="32" r="27" />
+                      <circle cx="23" cy="26" r="1.5" fill="currentColor" />
+                      <circle cx="41" cy="26" r="1.5" fill="currentColor" />
+                      <path d="M21 44c3-6 19-6 22 0" />
+                    </svg>
                     <p className="text-lg font-extrabold text-island-ink">
-                      Island feels quiet
+                      It feels quiet here
                     </p>
                     <p className="mt-2 text-sm font-medium text-island-muted">
                       Turn on a Tomoji from your roster to invite them here.

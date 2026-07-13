@@ -76,10 +76,10 @@ export function DashboardHeader({ activeTab, onTabChange }: DashboardHeaderProps
           </span>
           <span className="hidden min-w-0 lg:block">
             <span className="block truncate text-sm font-extrabold text-island-ink">
-              Tomoji Island
+              Tomoji
             </span>
             <span className="block truncate text-[10px] font-bold uppercase tracking-[0.16em] text-island-muted">
-              Companion club
+              Desktop companions
             </span>
           </span>
         </div>

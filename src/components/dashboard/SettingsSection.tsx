@@ -27,7 +27,7 @@ export function SettingsSection({
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           {icon ? (
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-island-ink/20 bg-island-custard">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-island-ink/20 bg-island-orange">
               <IslandIcon name={icon} className="h-5 w-5" />
             </span>
           ) : null}

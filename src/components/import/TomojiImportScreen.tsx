@@ -45,25 +45,41 @@ export function TomojiImportScreen({
   return (
     <TomojiPageLayout
       header={
-        <TomojiPageHeader title="Import Tomoji" onBack={onClose} />
+        <TomojiPageHeader
+          title="Import Tomoji"
+          subtitle="Restore an editable Tomoji character folder"
+          onBack={onClose}
+        />
       }
     >
-      <p className="mb-8 max-w-xl text-sm font-medium leading-relaxed text-island-muted">
-        Select a Tomoji character folder. It must contain a
-        <code className="mx-1 rounded bg-island-custard px-1.5 py-0.5 font-semibold text-island-ink">
-          manifest.json
-        </code>
-        and the sprite files it references.
-      </p>
+      <div className="grid max-w-4xl gap-6 lg:grid-cols-2">
+        <section className="island-card p-5">
+          <h2 className="text-base font-extrabold text-island-ink">Choose a Tomoji folder</h2>
+          <p className="mt-2 text-sm font-medium leading-relaxed text-island-muted">
+            Select an exported Tomoji character folder. Nothing is uploaded.
+          </p>
+          <button
+            type="button"
+            disabled={isImporting}
+            onClick={handleChooseFolder}
+            className="island-button island-button--primary mt-5 disabled:opacity-50"
+          >
+            {isImporting ? "Importing..." : "Choose Tomoji folder"}
+          </button>
+        </section>
 
-      <button
-        type="button"
-        disabled={isImporting}
-        onClick={handleChooseFolder}
-        className="island-button island-button--primary disabled:opacity-50"
-      >
-        {isImporting ? "Importing..." : "Choose folder"}
-      </button>
+        <section className="island-card p-5">
+          <h2 className="text-base font-extrabold text-island-ink">Folder contents</h2>
+          <pre className="island-form-section mt-3 overflow-x-auto text-xs leading-6 text-island-ink">{`My Tomoji/
+├── manifest.json
+└── sprites/
+    ├── idle.png
+    └── walk-1.png`}</pre>
+          <p className="mt-3 text-xs font-medium leading-relaxed text-island-muted">
+            Keep manifest.json and every referenced sprite in this folder.
+          </p>
+        </section>
+      </div>
 
       {result ? (
         <div className="mt-8 max-w-xl space-y-3">
