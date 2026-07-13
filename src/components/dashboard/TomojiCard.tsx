@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useCharacterAnimationRegistry } from "../../hooks/useCharacterAnimationRegistry";
 import type { AnimationRegistry } from "../../services/animationRegistry";
 import { isBuiltinCharacterId } from "../../services/characterLibrary";
@@ -23,6 +23,7 @@ interface TomojiCardProps {
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
   confirmBeforeDelete?: boolean;
+  style?: CSSProperties;
 }
 
 interface TomojiCardSpriteProps {
@@ -49,7 +50,7 @@ function TomojiCardSpriteLoader({ characterId }: { characterId: string }) {
   if (!registry) {
     return (
       <div
-        className="rounded-lg bg-neutral-800/80 animate-pulse"
+        className="animate-pulse rounded-lg bg-island-ink/15"
         style={{ width: CARD_SPRITE_HEIGHT * 0.75, height: CARD_SPRITE_HEIGHT * 0.75 }}
         aria-hidden
       />
@@ -81,6 +82,7 @@ export function TomojiCard({
   onArchive,
   onRestore,
   confirmBeforeDelete = true,
+  style,
 }: TomojiCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [toggleAnimationKey, setToggleAnimationKey] = useState(0);
@@ -208,38 +210,39 @@ export function TomojiCard({
         toggleInstance();
       }}
       tabIndex={canToggle ? 0 : undefined}
+      style={style}
       aria-label={`${instance.name}: ${instance.enabled ? "turn off" : "turn on"}`}
-      className={`relative flex aspect-square w-full max-w-[11rem] flex-col items-center justify-between overflow-hidden rounded-2xl border px-4 py-4 transition-[transform,border-color,box-shadow,background-color,opacity] duration-150 ease-out active:scale-[0.995] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+      className={`island-grid-enter relative flex aspect-square w-full max-w-[12rem] flex-col items-center overflow-hidden rounded-xl border-2 bg-island-paper p-2.5 transition-[transform,border-color,box-shadow,background-color,opacity] duration-200 ease-out active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-island-ink ${
         isDragging ? "opacity-40" : ""
-      } ${isDropTarget ? "ring-2 ring-white/60" : ""} ${
+      } ${isDropTarget ? "ring-2 ring-island-orange/70" : ""} ${
         instance.enabled && !isArchived
-          ? "border-white bg-neutral-900/60 shadow-[0_10px_28px_-24px_rgba(255,255,255,0.55)]"
-          : "border-neutral-500/80 bg-neutral-950"
+          ? "border-island-ink/65 shadow-[0_4px_0_rgba(24,52,79,0.14)]"
+          : "border-island-ink/25"
       } ${
         canToggle
-          ? "cursor-pointer hover:-translate-y-0.5 hover:border-white/80 hover:shadow-[0_10px_28px_-24px_rgba(255,255,255,0.45)]"
+          ? "cursor-pointer hover:-translate-y-0.5 hover:border-island-ink/60 hover:shadow-[0_4px_0_rgba(24,52,79,0.12)]"
           : "cursor-default"
       }`}
     >
       {toggleAnimationKey > 0 ? (
         <span
           key={toggleAnimationKey}
-          className={`tomoji-card-toggle-flash pointer-events-none absolute inset-0 rounded-2xl ${
-            instance.enabled && !isArchived ? "bg-white/5" : "bg-neutral-400/5"
+          className={`tomoji-card-toggle-flash pointer-events-none absolute inset-0 rounded-xl ${
+            instance.enabled && !isArchived ? "bg-island-orange/25" : "bg-island-ink/5"
           }`}
           aria-hidden
         />
       ) : null}
 
-      <div className="flex w-full items-center justify-between">
+      <div className="flex w-full items-center justify-between px-0.5 pb-2">
         <button
           type="button"
           onClick={toggleInstance}
           disabled={isArchived}
-          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+          className={`rounded-md border-2 border-island-ink/55 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide transition-colors ${
             instance.enabled && !isArchived
-              ? "bg-white text-black"
-              : "bg-neutral-800 text-neutral-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              ? "bg-island-orange text-island-ink"
+              : "bg-island-paper text-island-muted hover:bg-island-cream disabled:cursor-not-allowed disabled:opacity-50"
           }`}
           aria-pressed={instance.enabled && !isArchived}
         >
@@ -249,7 +252,7 @@ export function TomojiCard({
         <div className="flex items-center gap-1">
           {instance.muted === true ? (
             <span
-              className="text-neutral-400"
+              className="text-island-ink/65"
               aria-label={`${instance.name} is muted`}
               title="Muted"
             >
@@ -260,26 +263,26 @@ export function TomojiCard({
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => setIsMenuOpen((current) => !current)}
-            className="rounded-full px-1.5 pb-1 text-lg leading-none text-white hover:bg-neutral-800"
+            className="grid h-7 w-7 place-items-center rounded-md text-sm font-extrabold leading-none text-island-ink hover:bg-island-custard"
             aria-expanded={isMenuOpen}
             aria-label={`More options for ${instance.name}`}
           >
-            ...
+            •••
           </button>
         </div>
       </div>
 
       <div
         key={toggleAnimationKey}
-        className={`flex h-[72px] items-center justify-center ${
+        className={`flex min-h-0 w-full flex-1 items-center justify-center rounded-lg border border-island-ink/15 bg-island-orange/55 ${
           toggleAnimationKey > 0 ? "tomoji-card-toggle-pop" : ""
         }`}
       >
         <TomojiCardSpriteLoader characterId={instance.characterId} />
       </div>
 
-      <p className="w-full truncate text-center text-sm font-bold text-white">
-        {instance.characterId}
+      <p className="w-full truncate px-1 pt-2 text-center text-sm font-extrabold text-island-ink" title={instance.characterId}>
+        {instance.name}
       </p>
 
       {isMenuOpen ? (
@@ -287,12 +290,12 @@ export function TomojiCard({
           ref={menuRef}
           data-card-action
           onPointerDown={(event) => event.stopPropagation()}
-          className="absolute right-2 top-9 z-10 w-36 rounded-lg border border-neutral-700 bg-neutral-950 p-1 shadow-xl"
+          className="absolute right-2 top-9 z-10 w-36 rounded-lg border-2 border-island-ink/30 bg-island-paper p-1 shadow-xl"
         >
           <button
             type="button"
             onClick={handleEdit}
-            className="w-full rounded-md px-3 py-2 text-left text-xs font-bold text-neutral-200 hover:bg-neutral-800"
+            className="w-full rounded-md px-3 py-2 text-left text-xs font-bold text-island-ink hover:bg-island-custard"
           >
             Edit
           </button>
@@ -300,7 +303,7 @@ export function TomojiCard({
             <button
               type="button"
               onClick={handleArchive}
-              className="w-full rounded-md px-3 py-2 text-left text-xs font-bold text-neutral-200 hover:bg-neutral-800"
+              className="w-full rounded-md px-3 py-2 text-left text-xs font-bold text-island-ink hover:bg-island-custard"
             >
               Archive
             </button>
@@ -309,7 +312,7 @@ export function TomojiCard({
             <button
               type="button"
               onClick={handleRestore}
-              className="w-full rounded-md px-3 py-2 text-left text-xs font-bold text-neutral-200 hover:bg-neutral-800"
+              className="w-full rounded-md px-3 py-2 text-left text-xs font-bold text-island-ink hover:bg-island-custard"
             >
               Restore
             </button>

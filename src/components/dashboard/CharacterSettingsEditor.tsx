@@ -26,6 +26,7 @@ import type {
 } from "./settings/CharacterAutonomyPanel";
 import { CharacterBasicsPanel } from "./settings/CharacterBasicsPanel";
 import { DialogueLinesEditor } from "./settings/DialogueLinesEditor";
+import { IslandIcon } from "../ui/IslandIcon";
 
 const DEFAULT_SURFACE_ATTACHMENT_OFFSETS: SurfaceAttachmentOffsets = {
   wall: 0,
@@ -316,26 +317,49 @@ export function CharacterSettingsEditor({
   return (
     <TomojiPageLayout
       header={
-        <TomojiPageHeader title={`Edit ${instance.name}`} onBack={handleClose} />
+        <TomojiPageHeader
+          title={`Edit ${instance.name}`}
+          subtitle="Shape their look, personality, and favorite things to say."
+          onBack={handleClose}
+          trailing={
+            <span className={`island-badge ${isBuiltin ? "border-dashed" : "island-badge--active"}`}>
+              {isBuiltin ? "Built-in Tomoji" : "Imported Tomoji"}
+            </span>
+          }
+        />
       }
       footer={
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={isSaving}
-            className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
-          >
-            {isSaving ? "Saving..." : "Save changes"}
-          </button>
-          <p className="text-xs text-neutral-500">
-            Changes apply to running Tomojis as soon as you save.
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={isSaving}
+              aria-busy={isSaving}
+              className="island-button island-button--action"
+            >
+              <IslandIcon name="check" className="h-4 w-4" />
+              {isSaving ? "Saving…" : "Save changes"}
+            </button>
+            {isSaving || hasUnsavedChanges ? (
+              <span
+                className={`island-badge ${
+                  hasUnsavedChanges ? "island-badge--warning" : ""
+                }`}
+                aria-live="polite"
+              >
+                {isSaving ? "Saving changes" : "Unsaved changes"}
+              </span>
+            ) : null}
+          </div>
+          <p className="text-xs font-medium leading-relaxed text-island-muted">
+            Changes reach running Tomojis as soon as you save.
           </p>
         </div>
       }
     >
-      <div className="grid gap-10 lg:grid-cols-2">
-        <div className="space-y-6">
+      <div className="island-page-enter grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(19rem,0.85fr)] lg:items-start">
+        <div className="space-y-5">
           <CharacterBasicsPanel
             behavior={behavior}
             canEditAnimations={canEditAnimations}
@@ -367,13 +391,15 @@ export function CharacterSettingsEditor({
           />
         </div>
 
-        <DialogueLinesEditor
-          lineDraft={lineDraft}
-          lines={dialogue.lines}
-          onAddLine={addLine}
-          onLineDraftChange={setLineDraft}
-          onRemoveLine={removeLine}
-        />
+        <div className="min-w-0">
+          <DialogueLinesEditor
+            lineDraft={lineDraft}
+            lines={dialogue.lines}
+            onAddLine={addLine}
+            onLineDraftChange={setLineDraft}
+            onRemoveLine={removeLine}
+          />
+        </div>
       </div>
     </TomojiPageLayout>
   );

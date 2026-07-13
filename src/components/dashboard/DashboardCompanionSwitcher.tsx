@@ -18,9 +18,12 @@ export function DashboardCompanionSwitcher({
   }
 
   return (
-    <div className="flex shrink-0 border-b border-neutral-800 bg-neutral-950 px-6 py-2.5">
+    <div className="mb-5 flex shrink-0 items-center gap-3">
+      <span className="hidden text-xs font-extrabold uppercase tracking-[0.12em] text-island-muted sm:block">
+        Choose Tomoji
+      </span>
       <div
-        className="flex min-w-0 gap-1.5 overflow-x-auto"
+        className="island-segmented island-segmented--scroll min-w-0"
         role="tablist"
         aria-label="Companion selection"
       >
@@ -34,10 +37,10 @@ export function DashboardCompanionSwitcher({
               role="tab"
               aria-selected={isSelected}
               onClick={() => onSelect(instance.id)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold transition-colors ${
+              className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-md border-2 px-3 py-1 text-sm font-extrabold transition ${
                 isSelected
-                  ? "bg-white text-black"
-                  : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                  ? "border-island-ink/45 bg-island-orange text-island-ink"
+                  : "border-transparent bg-island-paper/80 text-island-muted hover:bg-island-cream hover:text-island-ink"
               }`}
             >
               {companionLabel(instance)}

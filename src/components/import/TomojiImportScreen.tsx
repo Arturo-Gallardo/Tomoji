@@ -48,9 +48,9 @@ export function TomojiImportScreen({
         <TomojiPageHeader title="Import Tomoji" onBack={onClose} />
       }
     >
-      <p className="mb-8 max-w-xl text-sm leading-relaxed text-neutral-400">
+      <p className="mb-8 max-w-xl text-sm font-medium leading-relaxed text-island-muted">
         Select a Tomoji character folder. It must contain a
-        <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-200">
+        <code className="mx-1 rounded bg-island-custard px-1.5 py-0.5 font-semibold text-island-ink">
           manifest.json
         </code>
         and the sprite files it references.
@@ -60,7 +60,7 @@ export function TomojiImportScreen({
         type="button"
         disabled={isImporting}
         onClick={handleChooseFolder}
-        className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
+        className="island-button island-button--primary disabled:opacity-50"
       >
         {isImporting ? "Importing..." : "Choose folder"}
       </button>
@@ -68,7 +68,7 @@ export function TomojiImportScreen({
       {result ? (
         <div className="mt-8 max-w-xl space-y-3">
           {result.ok ? (
-            <p className="rounded-lg border border-green-600/50 bg-green-500/10 px-4 py-3 text-sm text-green-300">
+            <p className="rounded-lg border border-island-orange/40 bg-island-orange/10 px-4 py-3 text-sm font-semibold text-island-orange">
               Imported successfully.
             </p>
           ) : null}

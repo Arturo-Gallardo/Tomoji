@@ -22,7 +22,7 @@ function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
       viewBox="0 0 16 16"
-      className={`h-3 w-3 shrink-0 text-neutral-500 transition-transform ${
+      className={`h-3 w-3 shrink-0 text-island-muted transition-transform ${
         open ? "rotate-90" : ""
       }`}
       fill="none"
@@ -71,20 +71,19 @@ export function AnimationCategoryGroupSection({
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-neutral-900 ${
+        className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-island-custard/70 ${
           missingRequired && !isOpen
-            ? "border border-amber-500/30 bg-amber-500/5"
+            ? "border border-island-orange/50 bg-island-custard/50"
             : ""
         }`}
       >
         <ChevronIcon open={isOpen} />
-        <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+        <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-island-muted">
           {group.label}
         </span>
         {missingRequired ? (
           <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400"
-            title="Required animation missing"
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-island-orange"
             aria-hidden
           />
         ) : null}
@@ -104,13 +103,12 @@ export function AnimationCategoryGroupSection({
                 <button
                   type="button"
                   onClick={() => onSelect(category)}
-                  title={meta.description}
                   className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
                     isActive
-                      ? "bg-white text-black"
+                      ? "border border-island-orange/60 bg-island-custard/80 text-island-ink shadow-[0_1px_0_rgba(24,52,79,0.1)]"
                       : missingRequired
-                        ? "border border-amber-500/40 bg-amber-500/10 text-amber-100 hover:border-amber-400/60"
-                        : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                        ? "border border-island-orange/60 bg-island-custard/70 text-island-ink hover:border-island-ink/55"
+                        : "text-island-muted hover:bg-island-custard/70 hover:text-island-ink"
                   }`}
                 >
                   <span className="min-w-0 flex-1 truncate">{meta.label}</span>
@@ -118,7 +116,7 @@ export function AnimationCategoryGroupSection({
                     <RequiredAnimationBadge category={category} compact />
                   ) : null}
                   {count > 0 ? (
-                    <span className="text-neutral-500">{count}</span>
+                    <span className="text-island-muted">{count}</span>
                   ) : null}
                 </button>
               </li>

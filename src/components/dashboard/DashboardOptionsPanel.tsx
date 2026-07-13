@@ -8,6 +8,7 @@ import {
 } from "../../services/dialogueManager";
 import type { CompanionInstance } from "../../types/companionInstance";
 import { updateInstance } from "../../services/companionInstanceManager";
+import { IslandIcon, type IslandIconName } from "../ui/IslandIcon";
 
 const BLOCKED_COMPANION_COMMAND_STATES = new Set([
   "dragging",
@@ -38,6 +39,44 @@ function commandHint(
 
 interface DashboardOptionsPanelProps {
   instance: CompanionInstance;
+}
+
+interface QuickActionProps {
+  accentClass: string;
+  disabled?: boolean;
+  icon: IslandIconName;
+  label: string;
+  pressed?: boolean;
+  title: string;
+  onClick: () => void;
+}
+
+function QuickAction({
+  accentClass,
+  disabled = false,
+  icon,
+  label,
+  pressed,
+  title,
+  onClick,
+}: QuickActionProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-disabled={disabled}
+      aria-pressed={pressed}
+      className={`island-action-tile ${accentClass} ${disabled ? "opacity-75" : ""}`}
+    >
+        <span className="flex items-start">
+          <span className="grid h-10 w-10 place-items-center rounded-xl border-2 border-island-ink/25 bg-island-paper/80">
+            <IslandIcon name={icon} className="h-5 w-5" />
+          </span>
+        </span>
+      <span className="text-base font-extrabold">{label}</span>
+    </button>
+  );
 }
 
 export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) {
@@ -89,66 +128,56 @@ export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) 
 
   return (
     <section className="flex min-h-0 items-center justify-center">
-      <div className="w-full rounded-3xl border border-neutral-700/80 bg-neutral-900/45 p-5 shadow-2xl shadow-black/25">
+      <div className="island-card w-full p-5 sm:p-6">
         <div className="mb-5 shrink-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-500">
-            Quick controls
+          <h2 className="text-xl font-extrabold text-island-ink">Play with {instance.name}</h2>
+          <p className="mt-1 text-sm font-medium text-island-muted">
+            Actions reach your live desktop companion.
           </p>
-          <p className="mt-2 text-lg font-bold text-white">{instance.name}</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
+          <QuickAction
+            accentClass="enabled:hover:bg-island-sky/35"
+            icon="dialogue"
+            label="Dialogue"
             onClick={handleDialogueClick}
             title={!canDialogue ? hint : "Make this Tomoji say a line now"}
-            aria-disabled={!canDialogue}
-            className={`flex min-h-24 items-center justify-center rounded-2xl border border-neutral-700 bg-neutral-950/50 text-base font-bold text-neutral-300 transition hover:border-neutral-400/80 hover:text-white ${
-              canDialogue ? "" : "cursor-default opacity-45"
-            }`}
-          >
-            Dialogue
-          </button>
+            disabled={!canDialogue}
+          />
 
-          <button
-            type="button"
+          <QuickAction
+            accentClass="enabled:hover:bg-island-custard/70"
+            icon="sit"
+            label={isSitting ? "Stand" : "Sit"}
             onClick={handleSitClick}
             title={!canToggleSit ? hint : isSitting ? "Stand up" : "Sit down"}
-            aria-disabled={!canToggleSit}
-            className={`flex min-h-24 items-center justify-center rounded-2xl border text-base font-bold text-neutral-300 transition hover:border-neutral-400/80 hover:text-white ${
-              isSitting
-                ? "border-white bg-white text-black"
-                : "border-neutral-700 bg-neutral-950/50"
-            } ${canToggleSit ? "" : "cursor-default opacity-45"}`}
-          >
-            {isSitting ? "Stand" : "Sit"}
-          </button>
+            disabled={!canToggleSit}
+            pressed={isSitting}
+          />
 
-          <button
-            type="button"
+          <QuickAction
+            accentClass="enabled:hover:bg-island-sky/25"
+            icon="freeze"
+            label={isFrozen ? "Unfreeze" : "Freeze"}
             onClick={handleFreezeClick}
-            className={`flex min-h-24 items-center justify-center rounded-2xl border text-base font-bold text-neutral-300 transition hover:border-neutral-400/80 hover:text-white ${
-              isFrozen
-                ? "border-white bg-white text-black"
-                : "border-neutral-700 bg-neutral-950/50"
-            }`}
-          >
-            {isFrozen ? "Unfreeze" : "Freeze"}
-          </button>
+            title={isFrozen ? "Resume movement" : "Pause movement"}
+            pressed={isFrozen}
+          />
 
-          <button
-            type="button"
+          <QuickAction
+            accentClass="enabled:hover:bg-island-rose/35"
+            icon="mute"
+            label={isMuted ? "Unmute" : "Mute"}
             onClick={handleMuteClick}
-            aria-pressed={isMuted}
-            className={`flex min-h-24 items-center justify-center rounded-2xl border text-base font-bold text-neutral-300 transition hover:border-neutral-400/80 hover:text-white ${
-              isMuted
-                ? "border-white bg-white text-black"
-                : "border-neutral-700 bg-neutral-950/50"
-            }`}
-          >
-            {isMuted ? "Unmute" : "Mute"}
-          </button>
+            title={isMuted ? "Allow dialogue" : "Pause dialogue"}
+            pressed={isMuted}
+          />
         </div>
+
+        <p className="island-notice mt-4 px-3 py-2.5 text-xs font-semibold leading-relaxed text-island-muted">
+          {hint}
+        </p>
       </div>
     </section>
   );

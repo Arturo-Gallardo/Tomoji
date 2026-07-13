@@ -151,7 +151,7 @@ function ImportPreview({ draft }: { draft: ShimejiGraphDraft }) {
           {draft.graph.importReport.posesParsed} poses
         </p>
         {draft.graph.baseDisplayScale && draft.graph.baseDisplayScale < 1 ? (
-          <p className="mt-1 text-emerald-300">
+          <p className="mt-1 text-island-orange">
             1x uses a fitted desktop size, with full-resolution sprites preserved.
           </p>
         ) : null}
@@ -424,7 +424,7 @@ export function ShimejiFolderImportScreen({
                 <p
                   className={`text-sm font-bold ${
                     scan.status === "ready"
-                      ? "text-emerald-300"
+                      ? "text-island-orange"
                       : "text-amber-300"
                   }`}
                 >

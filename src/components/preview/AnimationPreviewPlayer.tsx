@@ -35,7 +35,7 @@ export function AnimationPreviewPlayer({
           }}
         />
       ) : (
-        <span className="text-xs text-neutral-500">No frames</span>
+        <span className="text-xs font-medium text-island-muted">No frames</span>
       )}
     </div>
   );

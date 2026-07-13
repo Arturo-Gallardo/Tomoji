@@ -1,11 +1,15 @@
-import { openCharactersFolder } from "../../services/tomojiStorage";
 import { useAppSettings } from "../../hooks/useAppSettings";
 import { useAutostart } from "../../hooks/useAutostart";
+import { useCompanionBackgroundToggle } from "../../hooks/useCompanionBackgroundToggle";
+import { openCharactersFolder } from "../../services/tomojiStorage";
+import { IslandIcon } from "../ui/IslandIcon";
 import { SettingsSection } from "./SettingsSection";
 import { SettingsToggleRow } from "./SettingsToggleRow";
 
 export function SettingsView() {
   const { settings, isLoading, updateSettings } = useAppSettings();
+  const { mode: companionBackgroundMode, setMode: setCompanionBackgroundMode } =
+    useCompanionBackgroundToggle();
   const {
     isAutostartEnabled,
     isLoading: isAutostartLoading,
@@ -14,20 +18,32 @@ export function SettingsView() {
   } = useAutostart();
 
   return (
-    <section className="min-h-0 flex-1 overflow-y-auto px-8 py-8">
-      <div className="mx-auto w-full max-w-2xl">
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="mt-2 text-sm text-neutral-400">
-          App preferences are saved on this device.
-        </p>
+    <section className="island-scroll-region island-page-enter min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 sm:py-8">
+      <div className="mx-auto w-full max-w-4xl">
+        <header>
+          <h1 className="text-2xl font-extrabold tracking-[0.04em] text-island-ink sm:text-3xl">
+            Settings
+          </h1>
+          <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-island-muted">
+            Tune how Tomoji starts, remembers companions, and stores local files.
+          </p>
+        </header>
 
         {isLoading || settings === null ? (
-          <p className="mt-8 text-sm text-neutral-500">Loading settings…</p>
+          <div
+            className="island-card mt-6 flex items-center gap-3 p-5 text-sm font-bold text-island-muted"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="h-3 w-3 animate-pulse rounded-full bg-island-orange" />
+            Loading settings…
+          </div>
         ) : (
-          <div className="mt-8 space-y-4">
+          <div className="mt-6 space-y-5">
             <SettingsSection
               title="Startup"
               description="Choose when Tomoji opens"
+              icon="restore"
             >
               <SettingsToggleRow
                 label="Start Tomoji when computer starts"
@@ -37,13 +53,19 @@ export function SettingsView() {
                 onChange={(checked) => void setAutostartEnabled(checked)}
               />
               {autostartError ? (
-                <p className="mt-3 text-xs text-red-400">{autostartError}</p>
+                <p
+                  className="island-notice island-notice--error px-3 py-2.5 text-xs font-semibold"
+                  role="alert"
+                >
+                  {autostartError}
+                </p>
               ) : null}
             </SettingsSection>
 
             <SettingsSection
               title="Companion"
               description="How Tomojis behave when you open the app"
+              icon="tomoji"
             >
               <SettingsToggleRow
                 label="Restore companions on launch"
@@ -71,34 +93,62 @@ export function SettingsView() {
               />
             </SettingsSection>
 
-            <SettingsSection
-              title="Account"
-              description="Profile, email, and sign-in"
-              comingSoon
-            />
+            <div className="grid gap-5 md:grid-cols-2">
+              <SettingsSection
+                title="Account"
+                description="Profile, email, and sign-in"
+                icon="profile"
+                comingSoon
+              />
 
-            <SettingsSection
-              title="Subscription"
-              description="Plan, billing, and upgrades"
-              comingSoon
-            />
+              <SettingsSection
+                title="Subscription"
+                description="Plan, billing, and upgrades"
+                icon="sparkles"
+                comingSoon
+              />
+            </div>
 
             <SettingsSection
               title="Advanced"
               description="Local data and storage"
+              icon="folder"
             >
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="island-form-section flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-island-ink">
+                    Character files
+                  </p>
+                  <p className="mt-1 text-xs font-medium leading-relaxed text-island-muted">
+                    Character sprites and manifests live here on disk.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => void openCharactersFolder()}
-                  className="rounded-lg border border-neutral-600 px-4 py-2 text-sm font-medium text-neutral-200 hover:border-white hover:text-white"
+                  className="island-button island-button--soft shrink-0"
                 >
+                  <IslandIcon name="folder" className="h-4 w-4" />
                   Open Tomojis folder
                 </button>
-                <p className="text-xs text-neutral-500">
-                  Character sprites and manifests live here on disk.
-                </p>
               </div>
+            </SettingsSection>
+
+            <SettingsSection
+              title="Debug"
+              description="Temporary visual troubleshooting options"
+              icon="settings"
+            >
+              <SettingsToggleRow
+                label="Gray companion background"
+                description="Show a gray background behind desktop companion windows"
+                checked={companionBackgroundMode === "gray"}
+                onChange={(checked) =>
+                  setCompanionBackgroundMode(
+                    checked ? "gray" : "transparent",
+                  )
+                }
+              />
             </SettingsSection>
           </div>
         )}

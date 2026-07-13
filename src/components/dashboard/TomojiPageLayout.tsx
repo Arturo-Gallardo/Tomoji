@@ -16,12 +16,12 @@ export function TomojiPageLayout({
   wide = false,
 }: TomojiPageLayoutProps) {
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-neutral-800/80 px-8 py-5">
-        {header}
+    <section className="island-page-enter relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="island-page-band shrink-0 px-5 py-4 sm:px-8">
+        <div className="mx-auto w-full max-w-6xl">{header}</div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-8 py-8">
+      <div className="island-scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8 sm:py-6">
         {wide ? (
           children
         ) : (
@@ -30,7 +30,7 @@ export function TomojiPageLayout({
       </div>
 
       {footer ? (
-        <div className="shrink-0 border-t border-neutral-800/80 px-8 py-4">
+        <div className="island-page-band shrink-0 border-b-0 border-t-2 border-island-ink/15 px-5 py-3 sm:px-8 sm:py-4">
           {footer}
         </div>
       ) : null}

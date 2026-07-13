@@ -171,7 +171,7 @@ export function LegacyShimejiRemapEditor({
             type="button"
             disabled={isSaving || !hasRequiredMappings}
             onClick={() => void handleSave()}
-            className="rounded-lg bg-white px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+            className="island-button island-button--action text-sm disabled:opacity-50"
           >
             {isSaving ? "Saving..." : "Save mappings"}
           </button>

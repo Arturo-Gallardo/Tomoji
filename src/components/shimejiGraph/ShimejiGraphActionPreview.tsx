@@ -173,7 +173,7 @@ export function ShimejiGraphActionThumb({
 
   return (
     <div
-      className={`min-w-0 overflow-hidden flex items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 ${className}`}
+      className={`min-w-0 overflow-hidden flex items-center justify-center rounded-lg border border-island-ink/30 bg-island-cream ${className}`}
     >
       {src ? (
         <img
@@ -184,7 +184,7 @@ export function ShimejiGraphActionThumb({
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="text-[10px] text-neutral-600">none</span>
+        <span className="text-[10px] text-island-muted">none</span>
       )}
     </div>
   );
@@ -201,16 +201,16 @@ export function ShimejiGraphActionBrowser({
   const visibleRows = rows.filter((row) => matchesQuery(row, query));
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+    <section className="island-card min-w-0 overflow-hidden p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-bold text-white">Action browser</h2>
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs font-medium text-island-muted">
             Preview imported actions before mapping them. Frames are read-only
             for graph imports.
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-neutral-800 px-2 py-1 text-[10px] font-bold text-neutral-400">
+        <span className="island-badge shrink-0">
           {rows.length}
         </span>
       </div>
@@ -219,7 +219,7 @@ export function ShimejiGraphActionBrowser({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search actions, intent, type..."
-        className="mt-4 w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600 focus:border-white"
+        className="island-input mt-4 px-3 py-2 text-sm placeholder:text-island-muted/70"
       />
 
       <div className="mt-4 grid max-h-[34rem] gap-2 overflow-y-auto pr-1">
@@ -234,8 +234,8 @@ export function ShimejiGraphActionBrowser({
               onClick={() => onSelect(row.action.name)}
               className={`min-w-0 flex items-center gap-3 rounded-xl border p-2 text-left transition ${
                 isSelected
-                  ? "border-white bg-white text-black"
-                  : "border-neutral-800 bg-neutral-950/40 text-neutral-200 hover:border-neutral-600 hover:bg-neutral-900"
+                  ? "border-island-orange/60 bg-island-custard/80 text-island-ink"
+                  : "border-island-ink/30 bg-island-paper text-island-muted hover:border-island-ink/55 hover:bg-island-custard/70"
               }`}
             >
               <ShimejiGraphActionThumb
@@ -250,7 +250,7 @@ export function ShimejiGraphActionBrowser({
                 </span>
                 <span
                   className={`mt-1 block text-xs ${
-                    isSelected ? "text-black/60" : "text-neutral-500"
+                    isSelected ? "text-island-muted" : "text-island-muted"
                   }`}
                 >
                   {poses.length} frame{poses.length === 1 ? "" : "s"}
@@ -265,8 +265,8 @@ export function ShimejiGraphActionBrowser({
                         key={badge}
                         className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                           isSelected
-                            ? "bg-black/10 text-black"
-                            : "bg-neutral-800 text-neutral-300"
+                            ? "bg-island-orange/35 text-island-ink"
+                            : "bg-island-custard text-island-ink"
                         }`}
                       >
                         {badge}
@@ -297,13 +297,13 @@ export function ShimejiGraphActionPreview({
   const durationMs = actionDurationMs(poses);
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+    <section className="island-card min-w-0 overflow-hidden p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-bold text-white">
             {action?.name ?? "Select an action"}
           </h2>
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs font-medium text-island-muted">
             {action
               ? `${poses.length} frame${poses.length === 1 ? "" : "s"} · ${durationMs}ms loop · approx ${fps} fps`
               : "Choose an action to inspect playback."}
@@ -312,12 +312,12 @@ export function ShimejiGraphActionPreview({
         {action?.type || action?.borderType ? (
           <div className="flex flex-wrap justify-end gap-1">
             {action.type ? (
-              <span className="rounded-full bg-neutral-800 px-2 py-1 text-[10px] font-bold text-neutral-300">
+              <span className="island-badge">
                 {action.type}
               </span>
             ) : null}
             {action.borderType ? (
-              <span className="rounded-full bg-neutral-800 px-2 py-1 text-[10px] font-bold text-neutral-300">
+              <span className="island-badge">
                 {action.borderType}
               </span>
             ) : null}
@@ -326,7 +326,7 @@ export function ShimejiGraphActionPreview({
       </div>
 
       <div className="mt-5 flex min-w-0 flex-wrap gap-5">
-        <div className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950">
+        <div className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-island-ink/30 bg-island-cream">
           <AnimationPreviewPlayer
             frames={frames}
             fps={fps}
@@ -335,16 +335,16 @@ export function ShimejiGraphActionPreview({
           />
         </div>
 
-        <div className="min-w-0 flex-1 space-y-3 text-xs text-neutral-400 [overflow-wrap:anywhere]">
+        <div className="min-w-0 flex-1 space-y-3 text-xs font-medium text-island-muted [overflow-wrap:anywhere]">
           {action?.condition ? (
             <p>
-              <span className="text-neutral-500">Condition:</span>{" "}
+              <span className="text-island-muted">Condition:</span>{" "}
               {action.condition}
             </p>
           ) : null}
           {action && action.references.length > 0 ? (
             <p>
-              <span className="text-neutral-500">References:</span>{" "}
+              <span className="text-island-muted">References:</span>{" "}
               {action.references.map((reference) => reference.name).join(", ")}
             </p>
           ) : null}
@@ -359,7 +359,7 @@ export function ShimejiGraphActionPreview({
 
       {poses.length > 0 ? (
         <div className="mt-5 min-w-0">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-island-muted">
             Playback order
           </p>
           <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
@@ -369,7 +369,7 @@ export function ShimejiGraphActionPreview({
               return (
                 <div
                   key={`${pose.src}-${pose.source ?? ""}-${index}`}
-                  className="w-16 shrink-0 rounded-lg border border-neutral-800 bg-neutral-950 p-1"
+                  className="w-16 shrink-0 rounded-lg border border-island-ink/30 bg-island-paper p-1"
                   title={`${pose.durationTicks} ticks`}
                 >
                   <div className="flex h-12 items-center justify-center">
@@ -382,10 +382,10 @@ export function ShimejiGraphActionPreview({
                         style={{ imageRendering: "pixelated" }}
                       />
                     ) : (
-                      <span className="text-[10px] text-neutral-600">missing</span>
+                      <span className="text-[10px] text-island-muted">missing</span>
                     )}
                   </div>
-                  <p className="mt-1 truncate text-center text-[10px] text-neutral-500">
+                  <p className="mt-1 truncate text-center text-[10px] text-island-muted">
                     {index + 1} · {pose.durationTicks}t
                   </p>
                 </div>
@@ -393,7 +393,7 @@ export function ShimejiGraphActionPreview({
             })}
           </div>
           {poses.length > 48 ? (
-            <p className="mt-2 text-xs text-neutral-600">
+            <p className="mt-2 text-xs font-medium text-island-muted">
               Showing first 48 frames.
             </p>
           ) : null}

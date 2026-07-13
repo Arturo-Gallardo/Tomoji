@@ -10,8 +10,12 @@ export function useDashboardTab(): UseDashboardTabResult {
   const [activeTab, setActiveTab] = useState<DashboardTab>("dashboard");
 
   const setTab = useCallback((tab: DashboardTab) => {
+    if (tab === activeTab) {
+      return;
+    }
+
     setActiveTab(tab);
-  }, []);
+  }, [activeTab]);
 
   return { activeTab, setTab };
 }

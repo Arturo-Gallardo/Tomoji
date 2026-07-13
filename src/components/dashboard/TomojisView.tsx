@@ -4,6 +4,7 @@ import { useCompanionInstances } from "../../hooks/useCompanionInstances";
 import { openCharactersFolder } from "../../services/tomojiStorage";
 import { ShimejiFolderImportScreen } from "../import/ShimejiFolderImportScreen";
 import { TomojiImportScreen } from "../import/TomojiImportScreen";
+import { IslandIcon } from "../ui/IslandIcon";
 import { ShimejiImportWizard } from "../wizard/ShimejiImportWizard";
 import { AddTomojiModal } from "./AddTomojiModal";
 import { CharacterFrameEditor } from "./CharacterFrameEditor";
@@ -26,77 +27,51 @@ function companionCountLabel(count: number): string {
   return `${count} companion${count === 1 ? "" : "s"}`;
 }
 
-function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`h-4 w-4 ${spinning ? "animate-spin" : ""}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M20 11a8 8 0 1 0-2.34 5.66" />
-      <path d="M20 4v7h-7" />
-    </svg>
-  );
-}
-
-function ArchiveIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 5h18v4H3z" />
-      <path d="M5 9v10h14V9" />
-      <path d="M10 13h4" />
-    </svg>
-  );
-}
-
 function TomojiQuickStart({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="mb-8 grid gap-3 md:grid-cols-3">
       {[
         {
-          title: "1. Import",
+          number: "1",
+          title: "Invite",
           body: "Use Shimeji import for PC or Android packs. Use Tomoji folder for backups.",
         },
         {
-          title: "2. Toggle",
+          number: "2",
+          title: "Switch on",
           body: "Turn cards on to spawn them. Turn off before heavy editing.",
         },
         {
-          title: "3. Tune",
+          number: "3",
+          title: "Make it yours",
           body: "Open Edit to adjust size, speed, dialogue, and random behavior.",
         },
       ].map((item) => (
         <div
           key={item.title}
-          className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4"
+          className="island-surface flex gap-3 p-4"
         >
-          <p className="text-sm font-bold text-white">{item.title}</p>
-          <p className="mt-1 text-xs leading-relaxed text-neutral-500">
-            {item.body}
-          </p>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-island-ink/25 bg-island-custard text-sm font-extrabold">
+            {item.number}
+          </span>
+          <span>
+            <span className="block text-sm font-extrabold text-island-ink">{item.title}</span>
+            <span className="mt-1 block text-xs font-medium leading-relaxed text-island-muted">
+              {item.body}
+            </span>
+          </span>
         </div>
       ))}
       <button
         type="button"
         onClick={onAdd}
-        className="rounded-2xl border border-dashed border-neutral-600 bg-neutral-950 p-4 text-left transition hover:border-white hover:bg-neutral-900 md:hidden"
+        className="island-button island-button--primary justify-start rounded-2xl p-4 text-left md:hidden"
       >
-        <p className="text-sm font-bold text-white">Add first Tomoji</p>
-        <p className="mt-1 text-xs text-neutral-500">Import a character pack.</p>
+        <IslandIcon name="plus" className="h-5 w-5" />
+        <span>
+          <span className="block text-sm font-extrabold">Add first Tomoji</span>
+          <span className="mt-1 block text-xs text-white/80">Import a character pack.</span>
+        </span>
       </button>
     </div>
   );
@@ -161,18 +136,23 @@ export function TomojisView() {
         type="button"
         onClick={() => void handleRefresh()}
         disabled={isRefreshing}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-700 text-neutral-300 hover:border-white hover:text-white disabled:cursor-wait disabled:opacity-50"
+        className="island-icon-button h-10 w-10"
         aria-label={isRefreshing ? "Refreshing Tomojis" : "Refresh Tomojis"}
         title={isRefreshing ? "Refreshing Tomojis" : "Refresh Tomojis"}
       >
-        <RefreshIcon spinning={isRefreshing} />
+        <IslandIcon
+          name="refresh"
+          className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+        />
       </button>
       <button
         type="button"
         onClick={() => void openCharactersFolder()}
-        className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:border-white hover:text-white"
+        className="island-button island-button--soft min-h-10 px-3 py-2 text-sm"
       >
-        Open Tomojis folder
+        <IslandIcon name="folder" className="h-4 w-4" />
+        <span className="hidden sm:inline">Open Tomojis folder</span>
+        <span className="sm:hidden">Folder</span>
       </button>
     </div>
   );
@@ -229,6 +209,7 @@ export function TomojisView() {
   if (flow === "archive") {
     return (
       <TomojiPageLayout
+        key="archive"
         header={
           <TomojiPageHeader
             title="Archived Tomojis"
@@ -239,10 +220,15 @@ export function TomojisView() {
         }
       >
         {archivedInstances.length === 0 ? (
-          <p className="text-sm text-neutral-400">
-            No archived tomojis. Archive companions from their card menu to hide
-            them here without deleting.
-          </p>
+          <div className="island-card mx-auto max-w-lg p-8 text-center">
+            <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-island-custard">
+              <IslandIcon name="archive" className="h-6 w-6" />
+            </span>
+            <p className="text-base font-extrabold text-island-ink">Archive is empty</p>
+            <p className="mt-2 text-sm font-medium text-island-muted">
+              Archive companions from a card menu to hide them without deleting files.
+            </p>
+          </div>
         ) : (
           <TomojiGrid
             instances={archivedInstances}
@@ -262,6 +248,7 @@ export function TomojisView() {
 
   return (
     <TomojiPageLayout
+      key="list"
       header={
         <TomojiPageHeader
           title="Your Tomojis"
@@ -271,14 +258,14 @@ export function TomojisView() {
               <button
                 type="button"
                 onClick={() => setFlow("archive")}
-                className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-700 text-neutral-300 hover:border-white hover:text-white"
+                className="island-icon-button relative h-10 w-10"
                 aria-label="View archived Tomojis"
                 title="View archived Tomojis"
               >
-                <ArchiveIcon />
+                <IslandIcon name="archive" className="h-4 w-4" />
                 {archivedInstances.length > 0 ? (
                   <span
-                    className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-white px-1 text-center text-[10px] font-bold leading-4 text-black"
+                    className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-island-orange px-1 text-center text-[10px] font-bold leading-4 text-island-ink"
                     aria-hidden
                   >
                     {archivedInstances.length}
@@ -293,7 +280,7 @@ export function TomojisView() {
     >
       {settings?.showHelperTips !== false ? (
         <>
-          <p className="mb-4 max-w-xl text-sm text-neutral-400">
+          <p className="mb-4 max-w-xl text-sm font-medium text-island-muted">
             Click a card to toggle it on or off, edit behavior, or import new
             characters. Drag cards to rearrange.
           </p>
@@ -311,11 +298,11 @@ export function TomojisView() {
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search Tomojis..."
-            className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white outline-none focus:border-white"
+            className="w-full rounded-xl border-2 border-island-ink/30 bg-island-paper px-3 py-2 text-sm font-medium text-island-ink outline-none placeholder:text-island-muted/70 focus:border-island-ink"
           />
         </label>
         {lastImportMessage ? (
-          <p className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200">
+          <p className="rounded-md border border-island-ink/20 bg-island-orange/30 px-3 py-1.5 text-xs font-semibold text-island-ink" role="status">
             {lastImportMessage}
           </p>
         ) : null}
@@ -324,7 +311,7 @@ export function TomojisView() {
             type="button"
             onClick={() => void handleSetAllActive(true)}
             disabled={activeInstances.length === 0}
-            className="rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="island-button island-button--soft min-h-10 px-3 py-2 text-sm"
           >
             Turn all on
           </button>
@@ -332,7 +319,7 @@ export function TomojisView() {
             type="button"
             onClick={() => void handleSetAllActive(false)}
             disabled={activeInstances.length === 0}
-            className="rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="island-button island-button--soft min-h-10 px-3 py-2 text-sm"
           >
             Turn all off
           </button>
@@ -355,7 +342,7 @@ export function TomojisView() {
       />
 
       {searchTerm.trim() !== "" && filteredActiveInstances.length === 0 ? (
-        <p className="mt-6 rounded-xl border border-dashed border-neutral-800 px-4 py-6 text-center text-sm text-neutral-500">
+        <p className="mt-6 rounded-xl border-2 border-dashed border-island-ink/30 bg-island-paper/70 px-4 py-6 text-center text-sm font-medium text-island-muted">
           No Tomojis match “{searchTerm.trim()}”.
         </p>
       ) : null}

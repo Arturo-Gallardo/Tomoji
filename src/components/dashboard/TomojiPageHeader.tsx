@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IslandIcon } from "../ui/IslandIcon";
 
 interface TomojiPageHeaderProps {
   title: string;
@@ -16,23 +17,24 @@ export function TomojiPageHeader({
   trailing,
 }: TomojiPageHeaderProps) {
   return (
-    <div className="flex items-start gap-4">
+    <div className="flex min-h-12 flex-wrap items-center gap-3 sm:gap-4">
       {onBack ? (
         <button
           type="button"
           onClick={onBack}
-          className="mt-0.5 shrink-0 rounded-lg border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:border-white hover:text-white"
+          className="island-button island-button--soft shrink-0 px-3 py-2 text-sm"
         >
+          <IslandIcon name="back" className="h-4 w-4" />
           {backLabel}
         </button>
       ) : null}
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <h1 className="text-xl font-bold text-white">{title}</h1>
+      <div className="flex min-w-[12rem] flex-1 flex-col gap-0.5">
+        <h1 className="text-xl font-extrabold tracking-[0.04em] text-island-ink sm:text-2xl">{title}</h1>
         {subtitle ? (
-          <p className="text-xs text-neutral-500">{subtitle}</p>
+          <p className="text-xs font-bold text-island-muted">{subtitle}</p>
         ) : null}
       </div>
-      {trailing ? <div className="ml-auto shrink-0">{trailing}</div> : null}
+      {trailing ? <div className="ml-auto min-w-0 shrink-0">{trailing}</div> : null}
     </div>
   );
 }

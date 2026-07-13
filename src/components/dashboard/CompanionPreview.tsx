@@ -47,18 +47,28 @@ function CompanionPreviewInner({
       : mirrorState.action;
 
   return (
-    <section className="relative flex min-h-[28rem] items-center justify-center overflow-hidden rounded-3xl border border-neutral-800/80 bg-[radial-gradient(circle_at_center,rgba(64,64,64,0.28),rgba(10,10,10,0)_54%)] shadow-2xl shadow-black/25 lg:min-h-[34rem]">
+    <section
+      className="island-stage flex min-h-[28rem] items-center justify-center lg:min-h-[32rem]"
+      aria-label={`${instance.name} live preview`}
+    >
+      <div className="absolute left-5 top-5 z-20">
+        <p className="max-w-[12rem] truncate text-lg font-extrabold text-island-ink">
+          {instance.name}
+        </p>
+        <p className="mt-0.5 text-xs font-bold text-island-muted">Live preview</p>
+      </div>
       {instance.muted === true ? (
-        <span className="absolute left-5 top-5 flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 py-1.5 text-xs font-bold text-neutral-300">
+        <span className="island-badge absolute bottom-5 left-5 z-20 bg-island-rose/80">
           <MutedIcon />
           Muted
         </span>
       ) : null}
-      <div className="absolute right-5 top-5 rounded-full border border-neutral-800 bg-neutral-950/80 px-3 py-1.5 text-xs font-bold capitalize text-neutral-400">
+      <div className="island-badge absolute right-5 top-5 z-20 bg-island-paper capitalize">
+        <span className="h-2 w-2 rounded-full border border-island-ink/50 bg-island-orange" aria-hidden />
         {statusLabel}
       </div>
       <div
-        className="absolute inset-x-10 bottom-24 h-px bg-gradient-to-r from-transparent via-neutral-700/80 to-transparent"
+        className="absolute bottom-[15%] left-1/2 h-8 w-[60%] -translate-x-1/2 rounded-[50%] border-b-2 border-island-ink/20 bg-island-ink/10 blur-[0.2px]"
         aria-hidden
       />
       <div
@@ -82,8 +92,11 @@ export function CompanionPreview({ instance }: CompanionPreviewProps) {
 
   if (registry === null) {
     return (
-      <section className="flex h-full min-h-0 items-center justify-center text-sm text-neutral-500">
-        Loading preview…
+      <section className="island-stage flex min-h-[28rem] items-center justify-center" role="status">
+        <div className="text-center text-sm font-bold text-island-muted">
+          <span className="mx-auto mb-3 block h-16 w-12 animate-pulse rounded-2xl bg-island-paper/70" aria-hidden />
+          Waking up preview…
+        </div>
       </section>
     );
   }

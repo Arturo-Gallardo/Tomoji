@@ -1,21 +1,25 @@
+import type { CSSProperties } from "react";
+import { IslandIcon } from "../ui/IslandIcon";
+
 interface AddTomojiCardProps {
   onAdd: () => void;
+  style?: CSSProperties;
 }
 
-export function AddTomojiCard({ onAdd }: AddTomojiCardProps) {
+export function AddTomojiCard({ onAdd, style }: AddTomojiCardProps) {
   return (
     <button
       type="button"
       onClick={onAdd}
-      className="relative flex aspect-square w-full max-w-[11rem] flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-600 bg-neutral-950 transition hover:border-white hover:bg-neutral-900"
+      style={style}
+      className="island-grid-enter relative flex aspect-square w-full max-w-[12rem] flex-col items-center justify-center rounded-xl border-2 border-dashed border-island-ink/35 bg-island-paper transition duration-200 hover:-translate-y-0.5 hover:border-island-ink/60 hover:bg-island-orange/35"
       aria-label="Add Tomoji"
     >
-      <span className="relative mb-3 h-14 w-14" aria-hidden>
-        <span className="absolute left-1/2 top-0 h-14 w-[1.5px] -translate-x-1/2 bg-white" />
-        <span className="absolute left-0 top-1/2 h-[1.5px] w-14 -translate-y-1/2 bg-white" />
+      <span className="mb-3 grid h-11 w-11 place-items-center rounded-full border-2 border-island-ink/50 bg-island-orange" aria-hidden>
+        <IslandIcon name="plus" className="h-7 w-7" />
       </span>
-      <span className="text-sm font-bold text-white">Add Tomoji</span>
-      <span className="mt-1 text-xs text-neutral-500">Create or import</span>
+      <span className="text-sm font-extrabold text-island-ink">Add Tomoji</span>
+      <span className="mt-1 text-xs font-medium text-island-muted">Create or import</span>
     </button>
   );
 }

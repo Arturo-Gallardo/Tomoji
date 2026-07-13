@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import type { BehaviorSettings, RandomSitAction } from "../../../types/character";
+import { IslandIcon } from "../../ui/IslandIcon";
 
 export type RandomBehaviorKey = Extract<
   keyof BehaviorSettings,
@@ -103,50 +104,68 @@ function AutonomySliderRow({
   onFrequencyChange,
   children,
 }: AutonomySliderRowProps) {
+  const labelId = useId();
+  const descriptionId = useId();
   const sliderDisabled = disabled || !enabled;
 
   return (
     <div
-      className={`grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-center ${
-        disabled ? "opacity-50" : ""
+      className={`island-form-section grid gap-4 lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-center ${
+        disabled ? "border-dashed" : ""
       }`}
+      aria-disabled={disabled || undefined}
     >
       <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-3">
-          {onToggle ? (
-            <button
-              type="button"
-              role="switch"
-              aria-checked={enabled}
-              disabled={disabled}
-              onClick={() => onToggle(!enabled)}
-              className={`relative h-5 w-9 shrink-0 rounded-full transition disabled:cursor-default ${
-                enabled ? "bg-white" : "bg-neutral-700"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-neutral-950 transition ${
-                  enabled ? "left-[1.125rem]" : "left-0.5"
-                }`}
-              />
-            </button>
-          ) : null}
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-neutral-100">
+            <p id={labelId} className="text-sm font-extrabold text-island-ink">
               {label}
             </p>
-            <p className="mt-0.5 truncate text-xs text-neutral-500">
+            <p
+              id={descriptionId}
+              className="mt-1 text-xs font-medium leading-relaxed text-island-muted"
+            >
               {description}
             </p>
           </div>
+
+          {onToggle ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <span
+                className={`island-badge ${enabled ? "island-badge--active" : ""} ${
+                  disabled ? "border-dashed" : ""
+                }`}
+              >
+                {disabled ? "Unavailable" : enabled ? "On" : "Off"}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={enabled}
+                aria-labelledby={labelId}
+                aria-describedby={descriptionId}
+                disabled={disabled}
+                onClick={() => onToggle(!enabled)}
+                className="island-toggle disabled:cursor-not-allowed disabled:border-dashed disabled:opacity-60"
+              >
+                <span className="island-toggle-knob" />
+              </button>
+            </div>
+          ) : null}
         </div>
-        {children ? <div className="mt-3">{children}</div> : null}
+        {children ? <div className="mt-4">{children}</div> : null}
       </div>
 
-      <label className="block">
-        <span className="mb-1 flex justify-between text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-          <span>{controlLabel}</span>
-          <span>{valueLabel ?? percent(frequency)}</span>
+      <div className="block min-w-0">
+        <span className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-island-muted">
+            {controlLabel}
+          </span>
+          <output
+            className={`island-badge ${sliderDisabled ? "border-dashed" : ""}`}
+          >
+            {valueLabel ?? percent(frequency)}
+          </output>
         </span>
         <input
           type="range"
@@ -155,10 +174,13 @@ function AutonomySliderRow({
           step={0.05}
           value={frequency}
           disabled={sliderDisabled}
+          aria-labelledby={labelId}
+          aria-describedby={descriptionId}
+          aria-valuetext={valueLabel ?? percent(frequency)}
           onChange={(event) => onFrequencyChange(Number(event.target.value))}
-          className="w-full disabled:opacity-40"
+          className="island-slider w-full disabled:cursor-not-allowed disabled:opacity-45"
         />
-      </label>
+      </div>
     </div>
   );
 }
@@ -211,27 +233,39 @@ export function CharacterAutonomyPanel({
     floorWeightTotal > 0 ? percent(weight / floorWeightTotal) : "0%";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/70">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-800 px-4 py-3">
-        <div>
-          <p className="text-sm font-bold text-white">Autonomy</p>
-          <p className="mt-1 text-xs text-neutral-500">
-            Pace decides when it acts. Mix decides what it picks when a floor
-            action starts.
-          </p>
+    <section className="island-card overflow-hidden">
+      <div className="flex flex-col gap-4 border-b-2 border-island-ink/10 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-island-ink/20 bg-island-mint/60">
+            <IslandIcon name="sparkles" className="h-5 w-5" />
+          </span>
+          <div>
+            <span className="island-badge mb-2 bg-island-mint/50">
+              Free time
+            </span>
+            <h2 className="text-lg font-extrabold text-island-ink">Autonomy</h2>
+            <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-island-muted">
+              Pace decides when it acts. Mix decides what it picks when a floor
+              action starts.
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={onResetBehavior}
-          className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-bold text-neutral-300 hover:border-white hover:text-white"
+          className="island-button island-button--soft shrink-0 self-start text-xs"
         >
+          <IslandIcon name="restore" className="h-4 w-4" />
           Reset behavior
         </button>
       </div>
 
-      <div className="divide-y divide-neutral-800">
-        <div className="bg-neutral-900/50 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-          Timing
+      <div className="space-y-4 p-4 sm:p-5">
+        <div className="island-surface px-4 py-3">
+          <h3 className="text-sm font-extrabold text-island-ink">Timing</h3>
+          <p className="mt-1 text-xs font-medium text-island-muted">
+            Decide how often this Tomoji looks for something to do.
+          </p>
         </div>
 
         <AutonomySliderRow
@@ -245,8 +279,13 @@ export function CharacterAutonomyPanel({
           }
         />
 
-        <div className="bg-neutral-900/50 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-          Floor action mix (relative, not activity rate)
+        <div className="island-surface px-4 py-3">
+          <h3 className="text-sm font-extrabold text-island-ink">
+            Floor action mix
+          </h3>
+          <p className="mt-1 text-xs font-medium text-island-muted">
+            Relative preference when a floor action starts, not overall activity.
+          </p>
         </div>
 
         <AutonomySliderRow
@@ -302,8 +341,12 @@ export function CharacterAutonomyPanel({
           }
         >
           {showSitVariantPicker ? (
-            <div className={`transition ${behavior.allowRandomSit ? "" : "opacity-45"}`}>
-              <div className="flex flex-wrap gap-2">
+            <div className={behavior.allowRandomSit ? "" : "opacity-60"}>
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label="Sitting styles"
+              >
                 {visibleSitOptions.map((option) => {
                   const selected = behavior.randomSitActions.includes(
                     option.action,
@@ -319,20 +362,27 @@ export function CharacterAutonomyPanel({
                       onClick={() =>
                         onToggleRandomSitAction(option.action, !selected)
                       }
-                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:cursor-default ${
+                      className={`island-button min-h-9 px-3 py-1.5 text-xs ${
                         selected
-                          ? "border-white bg-white text-black"
-                          : "border-neutral-700 bg-neutral-900 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+                          ? "island-button--primary"
+                          : "island-button--soft"
                       }`}
                     >
+                      {selected ? (
+                        <IslandIcon name="check" className="h-3.5 w-3.5" />
+                      ) : null}
                       {option.label}
                     </button>
                   );
                 })}
               </div>
 
-              {behavior.allowRandomSit && behavior.randomSitActions.length === 0 ? (
-                <p className="mt-2 text-xs text-amber-300">
+              {behavior.allowRandomSit &&
+              behavior.randomSitActions.length === 0 ? (
+                <p
+                  className="island-notice island-notice--warning mt-3 px-3 py-2 text-xs font-semibold"
+                  role="alert"
+                >
                   Pick at least one sitting style or random sitting stays off.
                 </p>
               ) : null}
@@ -340,8 +390,13 @@ export function CharacterAutonomyPanel({
           ) : null}
         </AutonomySliderRow>
 
-        <div className="bg-neutral-900/50 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-          Attached actions
+        <div className="island-surface px-4 py-3">
+          <h3 className="text-sm font-extrabold text-island-ink">
+            Attached actions
+          </h3>
+          <p className="mt-1 text-xs font-medium text-island-muted">
+            Choose what it can do while holding a wall or ceiling.
+          </p>
         </div>
 
         <AutonomySliderRow
@@ -387,6 +442,6 @@ export function CharacterAutonomyPanel({
           onFrequencyChange={onDialogueFrequencyChange}
         />
       </div>
-    </div>
+    </section>
   );
 }

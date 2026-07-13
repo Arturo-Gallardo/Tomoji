@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 interface SettingsToggleRowProps {
   label: string;
   description?: string;
@@ -13,33 +15,50 @@ export function SettingsToggleRow({
   disabled = false,
   onChange,
 }: SettingsToggleRowProps) {
-  return (
-    <label className="flex items-start justify-between gap-4">
-      <span>
-        <span className="block text-sm text-neutral-200">{label}</span>
-        {description ? (
-          <span className="mt-1 block text-xs text-neutral-500">
-            {description}
-          </span>
-        ) : null}
-      </span>
+  const labelId = useId();
+  const descriptionId = useId();
 
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition disabled:cursor-default disabled:opacity-50 ${
-          checked ? "bg-white" : "bg-neutral-700"
-        }`}
-      >
+  return (
+    <div className="flex flex-col gap-3 border-t-2 border-island-ink/10 py-3 first:border-t-0 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p id={labelId} className="text-sm font-extrabold text-island-ink">
+          {label}
+        </p>
+        {description ? (
+          <p
+            id={descriptionId}
+            className="mt-1 text-xs font-medium leading-relaxed text-island-muted"
+          >
+            {description}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-neutral-950 transition ${
-            checked ? "left-[1.375rem]" : "left-0.5"
+          className={`island-badge ${checked ? "island-badge--active" : ""} ${
+            disabled ? "border-dashed" : ""
           }`}
-        />
-      </button>
-    </label>
+        >
+          {disabled
+            ? `Updating (${checked ? "On" : "Off"})`
+            : checked
+              ? "On"
+              : "Off"}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={checked}
+          aria-labelledby={labelId}
+          aria-describedby={description ? descriptionId : undefined}
+          disabled={disabled}
+          onClick={() => onChange(!checked)}
+          className="island-toggle disabled:cursor-wait disabled:border-dashed disabled:opacity-60"
+        >
+          <span className="island-toggle-knob" />
+        </button>
+      </div>
+    </div>
   );
 }

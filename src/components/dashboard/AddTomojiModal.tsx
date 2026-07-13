@@ -45,20 +45,20 @@ export function AddTomojiModal({
   return (
     <div
       role="presentation"
-      className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-8"
+      className="island-dialog-backdrop absolute inset-0 z-20 flex items-center justify-center p-6"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal
         aria-label="Add a Tomoji"
-        className="w-full max-w-md rounded-2xl border border-neutral-700 bg-neutral-950 p-6 shadow-2xl"
+        className="island-dialog w-full max-w-md p-5 sm:p-6"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white">Add a Tomoji</h2>
-            <p className="mt-1 text-xs text-neutral-500">
+            <h2 className="text-lg font-extrabold text-island-ink">Add a Tomoji</h2>
+            <p className="mt-1 text-xs font-medium text-island-muted">
               Make your own editable Tomoji, import Shimeji, or restore a
               Tomoji folder.
             </p>
@@ -66,10 +66,10 @@ export function AddTomojiModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full px-2 text-xl leading-none text-neutral-400 hover:text-white"
+            className="grid h-9 w-9 place-items-center rounded-md text-xl leading-none text-island-muted hover:bg-island-orange hover:text-island-ink"
             aria-label="Close"
           >
-            x
+            ×
           </button>
         </div>
 
@@ -80,10 +80,10 @@ export function AddTomojiModal({
               type="button"
               disabled={option.disabled}
               onClick={option.onSelect}
-              className="rounded-xl border border-neutral-700 px-4 py-3 text-left transition enabled:hover:border-white enabled:hover:bg-neutral-900 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border-2 border-island-ink/25 bg-island-paper px-4 py-3 text-left transition duration-150 enabled:hover:border-island-ink/55 enabled:hover:bg-island-orange/35 enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <p className="text-sm font-bold text-white">{option.label}</p>
-              <p className="text-xs text-neutral-400">{option.description}</p>
+              <p className="text-sm font-extrabold text-island-ink">{option.label}</p>
+              <p className="text-xs font-medium text-island-muted">{option.description}</p>
             </button>
           ))}
         </div>

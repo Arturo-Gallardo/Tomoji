@@ -258,6 +258,36 @@ export function useShimejiDraft() {
     [],
   );
 
+  const reorderFrame = useCallback(
+    (category: AnimationCategory, fromIndex: number, toIndex: number) => {
+      setDraft((current) => {
+        const assignment = current.assignments[category];
+        if (
+          fromIndex === toIndex ||
+          fromIndex < 0 ||
+          toIndex < 0 ||
+          fromIndex >= assignment.frames.length ||
+          toIndex >= assignment.frames.length
+        ) {
+          return current;
+        }
+
+        const frames = [...assignment.frames];
+        const [frame] = frames.splice(fromIndex, 1);
+        frames.splice(toIndex, 0, frame);
+
+        return {
+          ...current,
+          assignments: {
+            ...current.assignments,
+            [category]: { ...assignment, frames },
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const setFps = useCallback((category: AnimationCategory, fps: number) => {
     setDraft((current) => ({
       ...current,
@@ -321,6 +351,7 @@ export function useShimejiDraft() {
     removeFrame,
     removeLastFrameByPath,
     moveFrame,
+    reorderFrame,
     setFps,
     setName,
     addDialogueLine,

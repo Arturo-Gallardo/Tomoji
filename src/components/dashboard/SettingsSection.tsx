@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
+import {
+  IslandIcon,
+  type IslandIconName,
+} from "../ui/IslandIcon";
 
 interface SettingsSectionProps {
   title: string;
   description?: string;
   children?: ReactNode;
   comingSoon?: boolean;
+  icon?: IslandIconName;
 }
 
 export function SettingsSection({
@@ -12,24 +17,39 @@ export function SettingsSection({
   description,
   children,
   comingSoon = false,
+  icon,
 }: SettingsSectionProps) {
   return (
-    <section className="rounded-xl border border-neutral-600/70 bg-neutral-900/50 px-4 py-4">
+    <section
+      className={`island-card p-5 sm:p-6 ${comingSoon ? "border-dashed" : ""}`}
+      aria-disabled={comingSoon || undefined}
+    >
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-neutral-100">{title}</p>
-          {description ? (
-            <p className="mt-1 text-xs text-neutral-500">{description}</p>
+        <div className="flex min-w-0 items-start gap-3">
+          {icon ? (
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-island-ink/20 bg-island-custard">
+              <IslandIcon name={icon} className="h-5 w-5" />
+            </span>
           ) : null}
+          <div className="min-w-0">
+            <h2 className="text-base font-extrabold text-island-ink sm:text-lg">
+              {title}
+            </h2>
+            {description ? (
+              <p className="mt-1 text-sm font-medium leading-relaxed text-island-muted">
+                {description}
+              </p>
+            ) : null}
+          </div>
         </div>
         {comingSoon ? (
-          <span className="shrink-0 rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
-            Soon
+          <span className="island-badge shrink-0 border-dashed">
+            Coming soon
           </span>
         ) : null}
       </div>
 
-      {children ? <div className="mt-4 space-y-4">{children}</div> : null}
+      {children ? <div className="mt-5 space-y-3">{children}</div> : null}
     </section>
   );
 }

@@ -179,7 +179,7 @@ export function ShimejiGraphEditor({
           />
         }
       >
-        <p className="rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <p className="island-notice island-notice--error px-4 py-3 text-sm font-medium">
           {loadError}
         </p>
       </TomojiPageLayout>
@@ -196,7 +196,7 @@ export function ShimejiGraphEditor({
           />
         }
       >
-        <p className="text-sm text-neutral-400">Loading Shimeji graph...</p>
+        <p className="text-sm font-medium text-island-muted">Loading Shimeji graph...</p>
       </TomojiPageLayout>
     );
   }
@@ -220,7 +220,7 @@ export function ShimejiGraphEditor({
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200"
+            className="island-button island-button--soft text-sm"
           >
             Back
           </button>
@@ -228,7 +228,7 @@ export function ShimejiGraphEditor({
             type="button"
             disabled={isSaving}
             onClick={() => void handleSave()}
-            className="rounded-lg bg-white px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+            className="island-button island-button--action text-sm disabled:opacity-50"
           >
             {isSaving ? "Saving..." : "Save mappings"}
           </button>
@@ -236,35 +236,35 @@ export function ShimejiGraphEditor({
       }
     >
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
-          <h2 className="text-sm font-bold text-white">Import structure</h2>
+        <section className="island-card min-w-0 overflow-hidden p-5">
+          <h2 className="text-sm font-extrabold text-island-ink">Import structure</h2>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div>
-              <dt className="text-neutral-500">Actions</dt>
-              <dd className="text-neutral-100">
+              <dt className="text-island-muted">Actions</dt>
+              <dd className="font-extrabold text-island-ink">
                 {graph.importReport.actionsParsed}
               </dd>
             </div>
             <div>
-              <dt className="text-neutral-500">Behaviors</dt>
-              <dd className="text-neutral-100">
+              <dt className="text-island-muted">Behaviors</dt>
+              <dd className="font-extrabold text-island-ink">
                 {graph.importReport.behaviorsParsed}
               </dd>
             </div>
             <div>
-              <dt className="text-neutral-500">Poses</dt>
-              <dd className="text-neutral-100">{graph.importReport.posesParsed}</dd>
+              <dt className="text-island-muted">Poses</dt>
+              <dd className="font-extrabold text-island-ink">{graph.importReport.posesParsed}</dd>
             </div>
             <div>
-              <dt className="text-neutral-500">Canvas</dt>
-              <dd className="text-neutral-100">
+              <dt className="text-island-muted">Canvas</dt>
+              <dd className="font-extrabold text-island-ink">
                 {graph.spriteCanvas.width}×{graph.spriteCanvas.height}
               </dd>
             </div>
           </dl>
 
           {graph.importReport.issues.length > 0 ? (
-            <ul className="mt-4 space-y-1 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            <ul className="island-notice island-notice--warning mt-4 space-y-1 p-3 text-xs font-medium">
               {graph.importReport.issues.map((issue) => (
                 <li key={issue.message}>{issue.message}</li>
               ))}
@@ -287,16 +287,16 @@ export function ShimejiGraphEditor({
           />
         </div>
 
-        <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
+        <section className="island-card min-w-0 overflow-hidden p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-white">Core action mapping</h2>
-              <p className="mt-2 text-xs text-neutral-500">
+              <h2 className="text-sm font-extrabold text-island-ink">Core action mapping</h2>
+              <p className="mt-2 text-xs font-medium text-island-muted">
                 Click an action in the browser, preview it, then assign it to a
                 Tomoji behavior.
               </p>
             </div>
-            <p className="max-w-xs text-xs text-neutral-500">
+            <p className="max-w-xs text-xs font-medium text-island-muted">
               Graph imports preserve original frame order and timing. Individual
               frames are read-only.
             </p>
@@ -309,7 +309,7 @@ export function ShimejiGraphEditor({
               return (
                 <div
                   key={intent}
-                  className="min-w-0 rounded-xl border border-neutral-800 bg-neutral-950/35 p-3"
+                  className="island-form-section min-w-0 p-3"
                 >
                   <div className="flex items-center gap-3">
                     <ShimejiGraphActionThumb
@@ -319,7 +319,7 @@ export function ShimejiGraphEditor({
                       className="h-12 w-12 shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-neutral-400">
+                      <p className="text-xs font-bold text-island-muted">
                         {SHIMEJI_ACTION_INTENT_LABELS[intent]}
                       </p>
                       <button
@@ -330,7 +330,7 @@ export function ShimejiGraphEditor({
                           }
                         }}
                         disabled={!mappedActionName}
-                        className="mt-1 block max-w-full truncate text-left text-sm font-bold text-white disabled:text-neutral-600"
+                        className="mt-1 block max-w-full truncate text-left text-sm font-extrabold text-island-ink disabled:text-island-muted"
                         title={mappedActionName ?? "Fallback to idle"}
                       >
                         {mappedActionName ?? "Fallback to idle"}
@@ -342,7 +342,7 @@ export function ShimejiGraphEditor({
                       type="button"
                       disabled={!selectedActionName}
                       onClick={() => assignSelectedToIntent(intent)}
-                      className="rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-bold text-neutral-200 hover:border-white disabled:opacity-40"
+                      className="island-button island-button--soft min-h-8 px-3 py-1.5 text-xs disabled:opacity-40"
                     >
                       Use previewed action
                     </button>
@@ -350,7 +350,7 @@ export function ShimejiGraphEditor({
                       type="button"
                       disabled={!mappedActionName}
                       onClick={() => clearIntent(intent)}
-                      className="rounded-lg border border-neutral-800 px-3 py-1.5 text-xs font-bold text-neutral-500 hover:border-red-500/50 hover:text-red-300 disabled:opacity-40"
+                      className="island-button island-button--soft min-h-8 px-3 py-1.5 text-xs text-red-700 hover:border-red-700/50 hover:text-red-800 disabled:opacity-40"
                     >
                       Clear
                     </button>
@@ -361,13 +361,13 @@ export function ShimejiGraphEditor({
           </div>
         </section>
 
-        <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 xl:col-start-2">
+        <section className="island-card min-w-0 overflow-hidden p-5 xl:col-start-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-white">
+              <h2 className="text-sm font-extrabold text-island-ink">
                 Context menu actions
               </h2>
-              <p className="mt-2 text-xs text-neutral-500">
+              <p className="mt-2 text-xs font-medium text-island-muted">
                 Pick up to 6 previewed actions for the pet&apos;s Animations
                 menu.
               </p>
@@ -379,7 +379,7 @@ export function ShimejiGraphEditor({
                 (!selectedIsMenuAction && menuActionNames.length >= 6)
               }
               onClick={toggleSelectedMenuAction}
-              className="rounded-lg bg-white px-4 py-2 text-xs font-bold text-black disabled:opacity-40"
+              className="island-button island-button--primary min-h-9 px-4 py-2 text-xs disabled:opacity-40"
             >
               {selectedIsMenuAction ? "Remove previewed" : "Add previewed"}
             </button>
@@ -390,9 +390,9 @@ export function ShimejiGraphEditor({
               {menuActionNames.map((actionName, index) => (
                 <div
                   key={actionName}
-                  className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-950/35 p-2"
+                  className="island-form-section flex items-center gap-3 p-2"
                 >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-neutral-800 text-[10px] font-bold text-neutral-300">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-island-custard text-[10px] font-extrabold text-island-ink">
                     {index + 1}
                   </span>
                   <ShimejiGraphActionThumb
@@ -404,7 +404,7 @@ export function ShimejiGraphEditor({
                   <button
                     type="button"
                     onClick={() => setSelectedActionName(actionName)}
-                    className="min-w-0 flex-1 truncate text-left text-sm font-bold text-neutral-200 hover:text-white"
+                    className="min-w-0 flex-1 truncate text-left text-sm font-extrabold text-island-ink hover:text-island-muted"
                     title={actionName}
                   >
                     {actionName}
@@ -412,7 +412,7 @@ export function ShimejiGraphEditor({
                   <button
                     type="button"
                     onClick={() => toggleMenuAction(actionName)}
-                    className="rounded-md border border-neutral-800 px-2 py-1 text-[10px] font-bold text-neutral-500 hover:border-red-500/50 hover:text-red-300"
+                    className="island-button island-button--soft min-h-7 px-2 py-1 text-[10px] text-red-700 hover:border-red-700/50 hover:text-red-800"
                   >
                     Remove
                   </button>
@@ -420,7 +420,7 @@ export function ShimejiGraphEditor({
               ))}
             </div>
           ) : (
-            <p className="mt-4 rounded-xl border border-dashed border-neutral-800 px-3 py-4 text-center text-xs text-neutral-500">
+            <p className="mt-4 rounded-xl border border-dashed border-island-ink/30 px-3 py-4 text-center text-xs font-medium text-island-muted">
               No menu actions selected yet.
             </p>
           )}
@@ -428,7 +428,7 @@ export function ShimejiGraphEditor({
       </div>
 
       {saveError ? (
-        <p className="mt-6 rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+        <p className="island-notice island-notice--error mt-6 px-4 py-2 text-sm font-medium">
           {saveError}
         </p>
       ) : null}

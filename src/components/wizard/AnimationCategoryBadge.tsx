@@ -17,7 +17,7 @@ export function RequiredAnimationBadge({
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded bg-amber-500/15 px-1.5 py-0.5 font-bold uppercase tracking-wide text-amber-300 ${
+      className={`inline-flex shrink-0 items-center rounded bg-island-orange/35 px-1.5 py-0.5 font-bold uppercase tracking-wide text-island-ink ${
         compact ? "text-[9px]" : "text-[10px]"
       }`}
     >

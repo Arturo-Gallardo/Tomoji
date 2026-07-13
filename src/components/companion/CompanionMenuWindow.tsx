@@ -10,6 +10,7 @@ import type {
   CompanionMenuAction,
   CompanionMenuAnimationAction,
 } from "../../types/companionMenu";
+import { IslandIcon } from "../ui/IslandIcon";
 
 const ANIMATION_LABELS: Record<CompanionMenuAnimationAction, string> = {
   sit: "Sit",
@@ -132,14 +133,19 @@ export function CompanionMenuWindow() {
   };
 
   return (
-    <nav className="flex max-h-full w-full flex-col gap-1 overflow-y-auto rounded-md border border-neutral-600/90 bg-neutral-900/95 p-1.5 shadow-lg">
+    <nav
+      className="island-menu flex max-h-full w-full flex-col gap-0.5 overflow-y-auto p-1.5"
+      aria-label="Tomoji actions"
+    >
       <button
         type="button"
+        aria-pressed={muted}
         onClick={() => {
           handleAction("toggleMute");
         }}
-        className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+        className="island-menu-item !min-h-8 px-2 py-1 text-left text-xs font-extrabold"
       >
+        <IslandIcon name="mute" className="h-4 w-4 shrink-0" />
         {muted ? "Unmute" : "Mute"}
       </button>
 
@@ -150,8 +156,9 @@ export function CompanionMenuWindow() {
           onClick={() => {
             handleAction(item.action);
           }}
-          className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+          className="island-menu-item !min-h-8 px-2 py-1 text-left text-xs font-extrabold"
         >
+          <IslandIcon name="walk" className="h-4 w-4 shrink-0" />
           {item.label}
         </button>
       ))}
@@ -162,8 +169,9 @@ export function CompanionMenuWindow() {
           onClick={() => {
             handleAction("turnAround");
           }}
-          className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+          className="island-menu-item !min-h-8 px-2 py-1 text-left text-xs font-extrabold"
         >
+          <IslandIcon name="turn" className="h-4 w-4 shrink-0" />
           Turn around
         </button>
       ) : null}
@@ -184,16 +192,17 @@ export function CompanionMenuWindow() {
                 return expanded;
               });
             }}
-            className="flex w-full items-center justify-between rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+            className="island-menu-item !min-h-8 px-2 py-1 text-left text-xs font-extrabold"
           >
-            <span>Animations</span>
-            <span className="text-xs text-neutral-400">
+            <IslandIcon name="sparkles" className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1">Animations</span>
+            <span className="text-[10px] font-black text-[var(--color-island-muted)]">
               {animationsOpen ? "▲" : "▼"}
             </span>
           </button>
 
           {animationsOpen && (
-            <div className="mt-1 flex flex-col gap-1 border-l border-neutral-700 pl-2">
+            <div className="ml-2 mt-0.5 flex flex-col gap-0.5 border-l-2 border-[rgba(24,52,79,0.18)] pl-1.5">
               {animationItems.map((item) => (
                 <button
                   key={item.action}
@@ -201,8 +210,9 @@ export function CompanionMenuWindow() {
                   onClick={() => {
                     handleAction(item.action);
                   }}
-                  className="rounded px-2 py-1.5 text-left text-sm text-neutral-200 hover:bg-neutral-700/90"
+                  className="island-menu-item !min-h-7 px-1.5 py-1 text-left text-[11px] font-bold"
                 >
+                  <IslandIcon name="sparkles" className="h-3.5 w-3.5 shrink-0" />
                   {item.label}
                 </button>
               ))}
@@ -216,18 +226,21 @@ export function CompanionMenuWindow() {
         onClick={() => {
           handleAction("duplicate");
         }}
-        className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+        className="island-menu-item !min-h-8 px-2 py-1 text-left text-xs font-extrabold"
       >
+        <IslandIcon name="duplicate" className="h-4 w-4 shrink-0" />
         Duplicate
       </button>
 
       <button
         type="button"
+        aria-pressed={frozen}
         onClick={() => {
           handleAction("toggleFreeze");
         }}
-        className="rounded px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:bg-neutral-700/90"
+        className="island-menu-item !min-h-8 px-2 py-1 text-left text-xs font-extrabold"
       >
+        <IslandIcon name="freeze" className="h-4 w-4 shrink-0" />
         {frozen ? "Unfreeze" : "Freeze"}
       </button>
 
@@ -236,8 +249,9 @@ export function CompanionMenuWindow() {
         onClick={() => {
           handleAction("turnOff");
         }}
-        className="rounded px-2.5 py-1.5 text-left text-sm text-red-300 hover:bg-red-950/70"
+        className="island-menu-item !min-h-8 px-2 py-1 text-left text-xs font-extrabold !text-[#9b332c] hover:!bg-[#f8d5d8]"
       >
+        <IslandIcon name="close" className="h-4 w-4 shrink-0" />
         Turn off
       </button>
     </nav>

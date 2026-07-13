@@ -22,6 +22,7 @@ export function FinalPreviewStep({ controller }: FinalPreviewStepProps) {
   const frames = framesUrls(active);
   const fps = draft.assignments[active].fps;
   const line = draft.dialogueLines[lineIndex];
+  const previewLine = line ?? "Hi! I’m your new Tomoji!";
   const meta = ANIMATION_CATEGORY_META[active];
 
   useEffect(() => {
@@ -53,10 +54,10 @@ export function FinalPreviewStep({ controller }: FinalPreviewStepProps) {
               key={category}
               type="button"
               onClick={() => setActive(category)}
-              className={`rounded-full px-3 py-1 text-xs font-bold ${
+              className={`island-pill min-h-8 px-3 py-1 text-xs ${
                 active === category
-                  ? "bg-white text-black"
-                  : "bg-neutral-800 text-neutral-300 hover:text-white"
+                  ? "border-island-orange/60 bg-island-custard text-island-ink"
+                  : "text-island-muted hover:text-island-ink"
               }`}
             >
               {categoryMeta.label}
@@ -65,13 +66,13 @@ export function FinalPreviewStep({ controller }: FinalPreviewStepProps) {
         })}
       </div>
 
-      <p className="text-xs text-neutral-400">{meta.description}</p>
+      <p className="text-xs font-medium text-island-muted">{meta.description}</p>
 
-      <div className="flex items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900/50 py-10">
+      <div className="island-card flex items-center justify-center py-10">
         <div className="relative flex flex-col items-center">
-          {showBubble && line ? (
-            <div className="mb-2 max-w-[200px] rounded-2xl bg-white px-3 py-1.5 text-center text-xs font-medium text-black">
-              {line}
+          {showBubble ? (
+            <div className="mb-2 max-w-[200px] rounded-2xl border border-island-ink/25 bg-island-paper px-3 py-1.5 text-center text-xs font-medium text-island-ink">
+              {previewLine}
             </div>
           ) : null}
           <AnimationPreviewPlayer
@@ -83,14 +84,13 @@ export function FinalPreviewStep({ controller }: FinalPreviewStepProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 text-xs text-neutral-400">
+      <div className="flex items-center gap-4 text-xs font-medium text-island-muted">
         <span>Scale {draft.scale.toFixed(2)}x</span>
         <span>Speed {draft.speed.toFixed(1)} px/tick</span>
         <button
           type="button"
           onClick={() => setShowBubble((current) => !current)}
-          className="rounded-lg border border-neutral-700 px-3 py-1 text-neutral-200 hover:border-white"
-          disabled={draft.dialogueLines.length === 0}
+          className="island-button island-button--soft min-h-8 px-3 py-1 text-xs"
         >
           {showBubble ? "Hide" : "Show"} dialogue
         </button>

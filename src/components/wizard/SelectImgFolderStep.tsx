@@ -1,4 +1,5 @@
 import type { ShimejiDraftController } from "../../hooks/useShimejiDraft";
+import { IslandIcon } from "../ui/IslandIcon";
 
 interface SelectImgFolderStepProps {
   controller: ShimejiDraftController;
@@ -23,9 +24,11 @@ export function SelectImgFolderStep({
             on your machine and nothing is uploaded.
           </p>
 
-          <details className="rounded-2xl border border-sky-500/25 bg-sky-500/10 p-4 text-xs text-sky-100/80">
-            <summary className="cursor-pointer text-sm font-bold text-sky-100">
-              Sprite making guide
+          <details className="rounded-2xl border-2 border-island-ink/20 bg-island-paper/80 p-4 text-xs text-island-ink/75">
+            <summary className="group cursor-pointer text-sm font-extrabold text-island-ink marker:text-island-orange">
+              <span className="decoration-2 decoration-island-orange/70 underline-offset-4 transition group-hover:underline group-hover:decoration-island-orange">
+                Sprite making guide
+              </span>
             </summary>
             <div className="mt-3 space-y-2 leading-relaxed">
               <p>
@@ -76,8 +79,9 @@ export function SelectImgFolderStep({
               : "Select the Shimeji img sprite folder",
           )
         }
-        className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black disabled:opacity-50"
+        className="island-button island-button--primary disabled:opacity-50"
       >
+        <IslandIcon name="folder" className="h-4 w-4" />
         {isLoadingFolder
           ? "Loading..."
           : isTomoji

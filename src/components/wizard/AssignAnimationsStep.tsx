@@ -53,9 +53,9 @@ export function AssignAnimationsStep({ controller }: AssignAnimationsStepProps) 
   return (
     <div className="flex gap-8">
       <aside className="w-52 shrink-0">
-        <p className="mb-4 text-xs leading-relaxed text-neutral-400">
-          <span className="font-medium text-neutral-300">Idle</span> and{" "}
-          <span className="font-medium text-neutral-300">Walk</span> need at least
+        <p className="mb-4 text-xs leading-relaxed text-island-muted">
+          <span className="font-extrabold text-island-ink">Idle</span> and{" "}
+          <span className="font-extrabold text-island-ink">Walk</span> need at least
           one frame. Expand a group to assign optional animations.
         </p>
 

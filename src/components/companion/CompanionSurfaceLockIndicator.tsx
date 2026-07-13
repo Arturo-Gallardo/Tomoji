@@ -1,3 +1,5 @@
+import { IslandIcon } from "../ui/IslandIcon";
+
 interface CompanionSurfaceLockIndicatorProps {
   visible: boolean;
 }
@@ -11,13 +13,13 @@ export function CompanionSurfaceLockIndicator({
 
   return (
     <div
-      className="pointer-events-none absolute right-1 top-1 z-10 flex items-center gap-1 rounded-full border border-white/35 bg-black/85 px-1.5 py-0.5 shadow-sm"
+      className="island-badge island-badge--active pointer-events-none absolute right-1 top-1 z-10 !min-h-0 gap-1 !border-2 !border-[var(--color-island-ink)] !px-1.5 !py-0.5 shadow-sm"
       title="Release to attach to this window"
       aria-label="Release to attach to this window"
     >
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white" />
-      <span className="text-[9px] font-semibold leading-none tracking-wide text-white">
-        snap
+      <IslandIcon name="check" className="h-3 w-3 shrink-0" />
+      <span className="text-[9px] font-black leading-none tracking-wide">
+        Snap ready
       </span>
     </div>
   );

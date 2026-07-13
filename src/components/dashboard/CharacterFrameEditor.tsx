@@ -8,6 +8,7 @@ import {
 } from "../../types/character";
 import { AssignAnimationsStep } from "../wizard/AssignAnimationsStep";
 import { FinalPreviewStep } from "../wizard/FinalPreviewStep";
+import { IslandIcon } from "../ui/IslandIcon";
 import { LegacyShimejiRemapEditor } from "./LegacyShimejiRemapEditor";
 import { ShimejiGraphEditor } from "./ShimejiGraphEditor";
 import { TomojiPageHeader } from "./TomojiPageHeader";
@@ -162,7 +163,7 @@ export function CharacterFrameEditor({
           />
         }
       >
-        <p className="rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <p className="island-notice island-notice--error px-4 py-3 text-sm font-semibold">
           {loadError}
         </p>
       </TomojiPageLayout>
@@ -179,7 +180,10 @@ export function CharacterFrameEditor({
           />
         }
       >
-        <p className="text-sm text-neutral-400">Loading character frames...</p>
+        <div className="island-card flex items-center gap-3 px-5 py-4 text-sm font-bold">
+          <IslandIcon name="sparkles" className="h-5 w-5 animate-pulse" />
+          Loading character frames...
+        </div>
       </TomojiPageLayout>
     );
   }
@@ -194,40 +198,47 @@ export function CharacterFrameEditor({
             onBack={handleClose}
           />
           <nav
-            className="flex flex-wrap gap-2"
+            className="island-tabs w-fit max-w-full"
             aria-label="Frame edit steps"
           >
             {STEP_TITLES.map((title, index) => (
               <span
                 key={title}
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                aria-current={index === step ? "step" : undefined}
+                className={`inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-black ${
                   index === step
-                    ? "bg-white text-black"
+                    ? "border-[var(--color-island-ink)] bg-[var(--color-island-mint)]"
                     : index < step
-                      ? "text-neutral-200"
-                      : "text-neutral-500"
+                      ? "border-transparent bg-[var(--color-island-paper)]"
+                      : "border-transparent text-[var(--color-island-muted)]"
                 }`}
               >
-                {index + 1}. {title}
+                {index < step ? (
+                  <IslandIcon name="check" className="h-3.5 w-3.5" />
+                ) : (
+                  <span>{index + 1}.</span>
+                )}
+                {title}
               </span>
             ))}
           </nav>
         </div>
       }
       footer={
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4">
           <button
             type="button"
             onClick={() => setStep((current) => Math.max(0, current - 1))}
             disabled={step === 0}
-            className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 disabled:opacity-40"
+            className="island-button text-sm"
           >
+            <IslandIcon name="back" className="h-4 w-4" />
             Back
           </button>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
             {step === 0 ? (
-              <p className="text-xs text-neutral-500">
+              <p className="max-w-xs text-xs font-semibold text-[var(--color-island-muted)]">
                 Toggle the Tomoji off and on to refresh on-screen sprites.
               </p>
             ) : null}
@@ -237,8 +248,9 @@ export function CharacterFrameEditor({
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={isSaving || !hasRequiredFrames}
-                className="rounded-lg bg-white px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+                className="island-button island-button--action text-sm"
               >
+                <IslandIcon name="check" className="h-4 w-4" />
                 {isSaving ? "Saving..." : "Save frames"}
               </button>
             ) : (
@@ -246,7 +258,7 @@ export function CharacterFrameEditor({
                 type="button"
                 onClick={() => setStep((current) => current + 1)}
                 disabled={!hasRequiredFrames}
-                className="rounded-lg bg-white px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+                className="island-button island-button--action text-sm"
               >
                 Next
               </button>
@@ -256,21 +268,29 @@ export function CharacterFrameEditor({
       }
     >
       {step === 0 ? (
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="max-w-xl text-sm text-neutral-400">
-              Reassign animation frames from this native Tomoji&apos;s sprites.
-              Add more PNG, JPG, WebP, or BMP frames from another folder if you
-              need extra source art.
-            </p>
+        <div className="island-page-enter space-y-6">
+          <div className="island-notice flex flex-wrap items-center justify-between gap-4 px-4 py-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-island-ink)] bg-[var(--color-island-custard)]">
+                <IslandIcon name="sparkles" className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-black">Build each little movement</p>
+                <p className="mt-1 max-w-xl text-xs font-semibold leading-relaxed text-[var(--color-island-muted)]">
+                  Reassign frames from this Tomoji&apos;s sprites, or add PNG, JPG,
+                  WebP, or BMP art from another folder.
+                </p>
+              </div>
+            </div>
             <button
               type="button"
               disabled={isLoadingFolder}
               onClick={() =>
                 void mergeImgFolder("Select extra Tomoji sprite folder")
               }
-              className="shrink-0 rounded-lg border border-neutral-700 px-4 py-2 text-sm font-bold text-neutral-200 hover:border-white disabled:opacity-50"
+              className="island-button island-button--soft shrink-0 text-sm"
             >
+              <IslandIcon name="folder" className="h-4 w-4" />
               {isLoadingFolder ? "Loading..." : "Add frames from folder"}
             </button>
           </div>
@@ -282,7 +302,7 @@ export function CharacterFrameEditor({
       {step === 1 ? <FinalPreviewStep controller={controller} /> : null}
 
       {saveError ? (
-        <p className="mt-6 rounded-lg border border-red-600/50 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+        <p className="island-notice island-notice--error mt-6 px-4 py-3 text-sm font-semibold">
           {saveError}
         </p>
       ) : null}

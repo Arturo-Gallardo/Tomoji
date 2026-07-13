@@ -6,6 +6,7 @@ import {
 } from "../../services/companionWalkPickerApi";
 import type { TargetPickerMode } from "../../types/companionMenu";
 import { toPhysicalScreenPosition } from "../../utils/screenCoordinates";
+import { IslandIcon } from "../ui/IslandIcon";
 
 export function WalkPickerWindow() {
   const [mode, setMode] = useState<TargetPickerMode>("walk");
@@ -74,14 +75,38 @@ export function WalkPickerWindow() {
       : mode === "crawl" || mode === "floorCrawl"
         ? "cursor-ew-resize"
         : "cursor-crosshair";
+  const pickerTitle =
+    mode === "climb"
+      ? "Choose a climb height"
+      : mode === "crawl" || mode === "floorCrawl"
+        ? "Choose a crawl spot"
+        : "Choose a walking spot";
+  const pickerHint =
+    mode === "climb"
+      ? "Click at the height Tomoji should climb to."
+      : "Click where Tomoji should travel.";
 
   return (
     <div
       role="presentation"
-      className={`h-full w-full bg-black/10 ${cursorClass}`}
+      className={`relative h-full w-full bg-[#f6c84a]/15 ${cursorClass}`}
       onPointerDown={(event) => {
         void handlePointerDown(event);
       }}
-    />
+    >
+      <div className="pointer-events-none absolute left-1/2 top-6 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2">
+        <div className="island-card flex items-center gap-3 px-4 py-3 text-[var(--color-island-ink)]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-island-ink)] bg-[var(--color-island-custard)]">
+            <IslandIcon name="walk" className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-black">{pickerTitle}</span>
+            <span className="mt-0.5 block text-xs font-semibold text-[var(--color-island-muted)]">
+              {pickerHint} Right-click or press Esc to cancel.
+            </span>
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

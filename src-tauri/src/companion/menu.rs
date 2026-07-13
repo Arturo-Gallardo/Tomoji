@@ -22,7 +22,7 @@ pub struct CompanionMenuConfigPayload {
     pub target_label: String,
 }
 
-const MENU_WIDTH: f64 = 152.0;
+const MENU_WIDTH: f64 = 190.0;
 const DEFAULT_MENU_HEIGHT: f64 = 154.0;
 const MAX_MENU_HEIGHT: f64 = 300.0;
 const MENU_ITEM_HEIGHT: f64 = 36.0;

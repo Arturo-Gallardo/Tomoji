@@ -1,10 +1,11 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useId, type Dispatch, type SetStateAction } from "react";
 import { openCharacterFolder } from "../../../services/tomojiStorage";
 import type {
   BehaviorSettings,
   CharacterSource,
   SurfaceAttachmentOffsets,
 } from "../../../types/character";
+import { IslandIcon } from "../../ui/IslandIcon";
 
 const SCALE_PRESETS = [
   { label: "Tiny", value: 0.25 },
@@ -56,181 +57,328 @@ export function CharacterBasicsPanel({
   onBehaviorChange,
   onSurfaceOffsetsChange,
 }: CharacterBasicsPanelProps) {
+  const scaleInputId = useId();
+  const speedInputId = useId();
+  const wallOffsetInputId = useId();
+  const ceilingOffsetInputId = useId();
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {showHelperTips ? (
-        <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3">
-          <p className="text-sm font-bold text-sky-100">Quick edit guide</p>
-          <p className="mt-1 text-xs leading-relaxed text-sky-100/70">
-            Start with size and movement speed, then tune autonomy. Save to apply
-            changes to running companions.
-          </p>
-        </div>
+        <aside className="island-notice flex items-start gap-3 px-4 py-3.5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 border-island-ink/20 bg-island-sky/50">
+            <IslandIcon name="sparkles" className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-sm font-extrabold text-island-ink">
+              Quick edit guide
+            </p>
+            <p className="mt-1 text-xs font-medium leading-relaxed text-island-muted">
+              Start with size and movement speed, then tune autonomy. Save to apply
+              changes to running companions.
+            </p>
+          </div>
+        </aside>
       ) : null}
 
-      <label className="block">
-        <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-          Tomoji name
-        </span>
-        <input
-          type="text"
-          value={name}
-          onChange={(event) => onNameChange(event.target.value)}
-          disabled={isBuiltin}
-          className="mt-2 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-sm text-white outline-none focus:border-white"
-        />
-        <p className="mt-2 text-xs text-neutral-500">
-          {isBuiltin
-            ? "Built-in display name only. Bundled files stay fixed."
-            : "For imported Tomojis, saving a new name also renames the folder on disk."}
-        </p>
-      </label>
-
-      <label className="block">
-        <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-          Scale: {scale.toFixed(2)}x
-        </span>
-        <input
-          type="range"
-          min={0.1}
-          max={8}
-          step={0.05}
-          value={scale}
-          onChange={(event) => onScaleChange(Number(event.target.value))}
-          className="mt-2 w-full"
-        />
-        <div className="mt-2 flex flex-wrap gap-2">
-          {SCALE_PRESETS.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => onScaleChange(preset.value)}
-              className="rounded-full border border-neutral-700 px-3 py-1 text-xs font-bold text-neutral-300 hover:border-white hover:text-white"
-            >
-              {preset.label}
-            </button>
-          ))}
+      <section className="island-card p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-island-ink/20 bg-island-custard">
+            <IslandIcon name="tomoji" className="h-5 w-5" />
+          </span>
+          <div>
+            <span className="island-badge mb-2">Look &amp; feel</span>
+            <h2 className="text-lg font-extrabold text-island-ink">
+              Companion basics
+            </h2>
+            <p className="mt-1 text-sm font-medium leading-relaxed text-island-muted">
+              Choose how this Tomoji appears and moves around your desktop.
+            </p>
+          </div>
         </div>
-        <p className="mt-2 text-xs text-neutral-500">
-          Size changes the on-screen Tomoji window, not the source sprites.
-        </p>
-      </label>
+
+        <div className="mt-5 space-y-4">
+          <label className="island-form-section block">
+            <span className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-extrabold text-island-ink">
+                Tomoji name
+              </span>
+              {isBuiltin ? (
+                <span className="island-badge border-dashed">Name locked</span>
+              ) : null}
+            </span>
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => onNameChange(event.target.value)}
+              disabled={isBuiltin}
+              className="island-input mt-3 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-island-cream disabled:opacity-75"
+            />
+            <span className="mt-2 block text-xs font-medium leading-relaxed text-island-muted">
+              {isBuiltin
+                ? "Built-in display name only. Bundled files stay fixed."
+                : "For imported Tomojis, saving a new name also renames the folder on disk."}
+            </span>
+          </label>
+
+          <div className="island-form-section">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor={scaleInputId}
+                className="text-sm font-extrabold text-island-ink"
+              >
+                Size
+              </label>
+              <output
+                htmlFor={scaleInputId}
+                className="island-badge island-badge--active"
+              >
+                {scale.toFixed(2)}x
+              </output>
+            </div>
+            <input
+              id={scaleInputId}
+              type="range"
+              min={0.1}
+              max={8}
+              step={0.05}
+              value={scale}
+              aria-valuetext={`${scale.toFixed(2)} times`}
+              onChange={(event) => onScaleChange(Number(event.target.value))}
+              className="island-slider mt-4 w-full"
+            />
+            <div
+              className="mt-3 flex flex-wrap gap-2"
+              role="group"
+              aria-label="Size presets"
+            >
+              {SCALE_PRESETS.map((preset) => {
+                const selected = Math.abs(scale - preset.value) < 0.001;
+
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onScaleChange(preset.value)}
+                    className={`island-button min-h-9 px-3 py-1.5 text-xs ${
+                      selected ? "island-button--primary" : "island-button--soft"
+                    }`}
+                  >
+                    {selected ? (
+                      <IslandIcon name="check" className="h-3.5 w-3.5" />
+                    ) : null}
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs font-medium leading-relaxed text-island-muted">
+              Size changes the on-screen Tomoji window, not the source sprites.
+            </p>
+          </div>
+
+          <div className="island-form-section">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor={speedInputId}
+                className="text-sm font-extrabold text-island-ink"
+              >
+                Movement speed
+              </label>
+              <output
+                htmlFor={speedInputId}
+                className="island-badge island-badge--active"
+              >
+                {behavior.movementSpeed.toFixed(2)}x
+              </output>
+            </div>
+            <input
+              id={speedInputId}
+              type="range"
+              min={0.1}
+              max={8}
+              step={0.1}
+              value={behavior.movementSpeed}
+              aria-valuetext={`${behavior.movementSpeed.toFixed(2)} times`}
+              onChange={(event) =>
+                onBehaviorChange((current) => ({
+                  ...current,
+                  movementSpeed: Number(event.target.value),
+                }))
+              }
+              className="island-slider mt-4 w-full"
+            />
+            <div
+              className="mt-3 flex flex-wrap gap-2"
+              role="group"
+              aria-label="Movement speed presets"
+            >
+              {SPEED_PRESETS.map((preset) => {
+                const selected =
+                  Math.abs(behavior.movementSpeed - preset.value) < 0.001;
+
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() =>
+                      onBehaviorChange((current) => ({
+                        ...current,
+                        movementSpeed: preset.value,
+                      }))
+                    }
+                    className={`island-button min-h-9 px-3 py-1.5 text-xs ${
+                      selected ? "island-button--primary" : "island-button--soft"
+                    }`}
+                  >
+                    {selected ? (
+                      <IslandIcon name="check" className="h-3.5 w-3.5" />
+                    ) : null}
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {!isBuiltin ? (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-            Window attach offset
-          </p>
-          <p className="mt-2 text-xs leading-relaxed text-neutral-500">
-            Per-Tomoji tweak for wall grabs and underside crawls. Positive values
-            push the sprite farther outside the window edge.
-          </p>
-          <label className="mt-4 block">
-            <span className="text-xs font-bold text-neutral-400">
-              Walls: {surfaceOffsets.wall}px
+        <section className="island-card p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-island-ink/20 bg-island-sky/40">
+              <IslandIcon name="drag" className="h-5 w-5" />
             </span>
-            <input
-              type="range"
-              min={-80}
-              max={80}
-              step={1}
-              value={surfaceOffsets.wall}
-              onChange={(event) =>
-                onSurfaceOffsetsChange((current) => ({
-                  ...current,
-                  wall: Number(event.target.value),
-                }))
-              }
-              className="mt-2 w-full"
-            />
-          </label>
-          <label className="mt-4 block">
-            <span className="text-xs font-bold text-neutral-400">
-              Ceilings: {surfaceOffsets.ceiling}px
-            </span>
-            <input
-              type="range"
-              min={-80}
-              max={80}
-              step={1}
-              value={surfaceOffsets.ceiling}
-              onChange={(event) =>
-                onSurfaceOffsetsChange((current) => ({
-                  ...current,
-                  ceiling: Number(event.target.value),
-                }))
-              }
-              className="mt-2 w-full"
-            />
-          </label>
-        </div>
+            <div>
+              <h2 className="text-lg font-extrabold text-island-ink">
+                Window attach offset
+              </h2>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-island-muted">
+                Fine-tune wall grabs and underside crawls. Positive values push
+                the sprite farther outside the window edge.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="island-form-section">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor={wallOffsetInputId}
+                  className="text-sm font-extrabold text-island-ink"
+                >
+                  Walls
+                </label>
+                <output htmlFor={wallOffsetInputId} className="island-badge">
+                  {surfaceOffsets.wall}px
+                </output>
+              </div>
+              <input
+                id={wallOffsetInputId}
+                type="range"
+                min={-80}
+                max={80}
+                step={1}
+                value={surfaceOffsets.wall}
+                aria-valuetext={`${surfaceOffsets.wall} pixels`}
+                onChange={(event) =>
+                  onSurfaceOffsetsChange((current) => ({
+                    ...current,
+                    wall: Number(event.target.value),
+                  }))
+                }
+                className="island-slider mt-4 w-full"
+              />
+              <span className="mt-2 flex justify-between text-[10px] font-bold text-island-muted">
+                <span>Inside</span>
+                <span>Outside</span>
+              </span>
+            </div>
+
+            <div className="island-form-section">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor={ceilingOffsetInputId}
+                  className="text-sm font-extrabold text-island-ink"
+                >
+                  Ceilings
+                </label>
+                <output
+                  htmlFor={ceilingOffsetInputId}
+                  className="island-badge"
+                >
+                  {surfaceOffsets.ceiling}px
+                </output>
+              </div>
+              <input
+                id={ceilingOffsetInputId}
+                type="range"
+                min={-80}
+                max={80}
+                step={1}
+                value={surfaceOffsets.ceiling}
+                aria-valuetext={`${surfaceOffsets.ceiling} pixels`}
+                onChange={(event) =>
+                  onSurfaceOffsetsChange((current) => ({
+                    ...current,
+                    ceiling: Number(event.target.value),
+                  }))
+                }
+                className="island-slider mt-4 w-full"
+              />
+              <span className="mt-2 flex justify-between text-[10px] font-bold text-island-muted">
+                <span>Inside</span>
+                <span>Outside</span>
+              </span>
+            </div>
+          </div>
+        </section>
       ) : null}
 
       {canEditAnimations ? (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-            {characterSource === "shimeji"
-              ? "Shimeji action mapping"
-              : "Animation frames"}
-          </p>
-          <p className="mt-2 text-xs leading-relaxed text-neutral-500">
-            {editAnimationDescription}
-          </p>
-          <button
-            type="button"
-            onClick={onEditFrames}
-            className="mt-4 rounded-lg border border-neutral-600 px-4 py-2 text-sm font-bold text-white hover:border-white"
-          >
-            {editAnimationLabel}
-          </button>
-          {characterSource === "tomoji" ? (
+        <section className="island-card p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-island-ink/20 bg-island-rose/45">
+              <IslandIcon name="edit" className="h-5 w-5" />
+            </span>
+            <div>
+              <span className="island-badge mb-2 bg-island-custard">
+                {characterSource === "shimeji"
+                  ? "Shimeji action mapping"
+                  : "Animation frames"}
+              </span>
+              <h2 className="text-lg font-extrabold text-island-ink">
+                Animation studio
+              </h2>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-island-muted">
+                {editAnimationDescription}
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => void openCharacterFolder(characterId)}
-              className="ml-3 mt-4 rounded-lg border border-neutral-700 px-4 py-2 text-sm font-bold text-neutral-300 hover:border-white hover:text-white"
+              onClick={onEditFrames}
+              className="island-button island-button--primary"
             >
-              Open folder
+              <IslandIcon name="edit" className="h-4 w-4" />
+              {editAnimationLabel}
             </button>
-          ) : null}
-        </div>
+            {characterSource === "tomoji" ? (
+              <button
+                type="button"
+                onClick={() => void openCharacterFolder(characterId)}
+                className="island-button island-button--soft"
+              >
+                <IslandIcon name="folder" className="h-4 w-4" />
+                Open folder
+              </button>
+            ) : null}
+          </div>
+        </section>
       ) : null}
-
-      <label className="block">
-        <span className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-          Movement speed: {behavior.movementSpeed.toFixed(2)}x
-        </span>
-        <input
-          type="range"
-          min={0.1}
-          max={8}
-          step={0.1}
-          value={behavior.movementSpeed}
-          onChange={(event) =>
-            onBehaviorChange((current) => ({
-              ...current,
-              movementSpeed: Number(event.target.value),
-            }))
-          }
-          className="mt-2 w-full"
-        />
-        <div className="mt-2 flex flex-wrap gap-2">
-          {SPEED_PRESETS.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() =>
-                onBehaviorChange((current) => ({
-                  ...current,
-                  movementSpeed: preset.value,
-                }))
-              }
-              className="rounded-full border border-neutral-700 px-3 py-1 text-xs font-bold text-neutral-300 hover:border-white hover:text-white"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      </label>
     </div>
   );
 }

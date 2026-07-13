@@ -1,11 +1,10 @@
 import { useEffect } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCharactersFolderAutoSync } from "../../hooks/useCharactersFolderAutoSync";
 import { useDashboardTab } from "../../hooks/useDashboardTab";
-import { useCompanionBackgroundToggle } from "../../hooks/useCompanionBackgroundToggle";
 import { useDashboardSelectedCompanion } from "../../hooks/useDashboardSelectedCompanion";
 import { bootstrapCompanions } from "../../services/companionInstanceManager";
 import { CompanionPreview } from "./CompanionPreview";
-import { DashboardBackgroundToggle } from "./DashboardBackgroundToggle";
 import { DashboardCompanionSwitcher } from "./DashboardCompanionSwitcher";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardOptionsPanel } from "./DashboardOptionsPanel";
@@ -14,7 +13,7 @@ import { TomojisView } from "./TomojisView";
 
 export function DashboardShell() {
   const { activeTab, setTab } = useDashboardTab();
-  const { mode, toggleLabel, cycleMode } = useCompanionBackgroundToggle();
+  const reduceMotion = useReducedMotion();
   const {
     controllableInstances,
     selectedInstanceId,
@@ -31,58 +30,85 @@ export function DashboardShell() {
   }, []);
 
   return (
-    <main className="relative flex h-screen flex-col bg-neutral-950 text-neutral-100">
+    <main className="island-shell relative flex h-screen flex-col overflow-hidden">
       <DashboardHeader activeTab={activeTab} onTabChange={setTab} />
 
-      {activeTab === "tomojis" ? (
-        <TomojisView />
-      ) : activeTab === "dashboard" ? (
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          <DashboardCompanionSwitcher
-            instances={controllableInstances}
-            selectedInstanceId={selectedInstanceId}
-            onSelect={setSelectedInstanceId}
-          />
-
-          {selectedInstanceId !== null && selectedInstance !== null ? (
-            <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1 items-center gap-6 overflow-y-auto px-6 py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-              <CompanionPreview instance={selectedInstance} />
-              <DashboardOptionsPanel instance={selectedInstance} />
+      <AnimatePresence initial={false} mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, x: reduceMotion ? 0 : 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: reduceMotion ? 0 : -16 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 0.32, ease: [0.2, 0.8, 0.2, 1] }
+          }
+          className="flex min-h-0 flex-1"
+        >
+          {activeTab === "tomojis" ? (
+            <TomojisView />
+          ) : activeTab === "dashboard" ? (
+        <section className="island-scroll-region island-page-enter min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-5 py-6 sm:px-8 sm:py-8">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-[0.04em] text-island-ink sm:text-3xl">
+                  Who’s hanging out?
+                </h1>
+                <p className="mt-1 max-w-xl text-sm font-medium text-island-muted">
+                  Check in, start an activity, or change how your Tomoji appears.
+                </p>
+              </div>
             </div>
+
+            <DashboardCompanionSwitcher
+              instances={controllableInstances}
+              selectedInstanceId={selectedInstanceId}
+              onSelect={setSelectedInstanceId}
+            />
+
+            {selectedInstanceId !== null && selectedInstance !== null ? (
+              <div className="grid min-h-0 flex-1 grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+                <CompanionPreview instance={selectedInstance} />
+                <DashboardOptionsPanel instance={selectedInstance} />
+              </div>
+            ) : (
+              <div className="island-card my-auto flex min-h-72 items-center justify-center p-8">
+                {isSelectionLoading ? (
+                  <div className="text-center" role="status" aria-live="polite">
+                    <span className="mx-auto mb-3 block h-12 w-12 animate-pulse rounded-full bg-island-custard" />
+                    <p className="text-sm font-bold text-island-muted">Gathering companions…</p>
+                  </div>
+                ) : (
+                  <div className="max-w-sm text-center">
+                    <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full border-2 border-island-ink/25 bg-island-custard" aria-hidden>
+                      <span className="block h-5 w-5 rounded-full border-2 border-island-ink/50 bg-island-orange" />
+                    </span>
+                    <p className="text-lg font-extrabold text-island-ink">
+                      Island feels quiet
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-island-muted">
+                      Turn on a Tomoji from your roster to invite them here.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setTab("tomojis")}
+                      className="island-button island-button--primary mt-5"
+                    >
+                      Open Tomojis
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
           ) : (
-            <div className="flex min-h-0 flex-1 items-center justify-center">
-              {isSelectionLoading ? (
-                <p className="text-sm text-neutral-500">Loading companions...</p>
-              ) : (
-                <div className="max-w-sm text-center">
-                  <p className="text-sm font-bold text-white">
-                    No companions on screen
-                  </p>
-                  <p className="mt-2 text-sm text-neutral-500">
-                    Go to Tomojis, import a pack, then toggle a card on.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setTab("tomojis")}
-                    className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-black"
-                  >
-                    Open Tomojis
-                  </button>
-                </div>
-              )}
-            </div>
+            <SettingsView />
           )}
-
-          <DashboardBackgroundToggle
-            mode={mode}
-            label={toggleLabel}
-            onCycle={cycleMode}
-          />
-        </div>
-      ) : (
-        <SettingsView />
-      )}
-
+        </motion.div>
+      </AnimatePresence>
     </main>
   );
 }

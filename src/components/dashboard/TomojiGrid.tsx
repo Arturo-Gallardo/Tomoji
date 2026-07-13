@@ -76,8 +76,8 @@ export function TomojiGrid({
   );
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-8">
-      {instances.map((instance) => (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-4 sm:gap-5">
+      {instances.map((instance, index) => (
         <TomojiCard
           key={instance.id}
           instance={instance}
@@ -94,10 +94,16 @@ export function TomojiGrid({
           onArchive={onArchive}
           onRestore={onRestore}
           confirmBeforeDelete={confirmBeforeDelete}
+          style={{ animationDelay: `${Math.min(index, 8) * 32}ms` }}
         />
       ))}
 
-      {onAdd ? <AddTomojiCard onAdd={onAdd} /> : null}
+      {onAdd ? (
+        <AddTomojiCard
+          onAdd={onAdd}
+          style={{ animationDelay: `${Math.min(instances.length, 8) * 32}ms` }}
+        />
+      ) : null}
     </div>
   );
 }
