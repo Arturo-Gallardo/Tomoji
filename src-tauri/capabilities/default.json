@@ -5,6 +5,10 @@
   "windows": ["main", "companion-*", "walk-picker"],
   "permissions": [
     "core:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-start-dragging",
+    "core:window:allow-toggle-maximize",
     "dialog:default",
     "fs:default",
     "fs:allow-appdata-read-recursive",
