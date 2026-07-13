@@ -1,3 +1,5 @@
+import { IslandIcon } from "../ui/IslandIcon";
+
 interface AddTomojiModalProps {
   onClose: () => void;
   onCreateTomoji: () => void;
@@ -23,21 +25,19 @@ export function AddTomojiModal({
     {
       id: "create-tomoji",
       label: "Create new Tomoji",
-      description:
-        "Start from your own sprite folder, assign actions, then save as an editable native Tomoji.",
+      description: "Build from sprites and assign actions.",
       onSelect: onCreateTomoji,
     },
     {
       id: "import-shimeji",
       label: "Import Shimeji pack",
-      description:
-        "PC or Android Shimeji. Preserves original actions, timing, sprites, and movement.",
+      description: "Keep its actions, timing, sprites, and movement.",
       onSelect: onImportShimeji,
     },
     {
       id: "import-tomoji",
       label: "Import Tomoji folder",
-      description: "Restore an already-converted Tomoji character folder.",
+      description: "Restore a converted Tomoji character.",
       onSelect: onImportTomoji,
     },
   ];
@@ -59,17 +59,16 @@ export function AddTomojiModal({
           <div>
             <h2 className="text-lg font-extrabold text-island-ink">Add a Tomoji</h2>
             <p className="mt-1 text-xs font-medium text-island-muted">
-              Make your own editable Tomoji, import Shimeji, or restore a
-              Tomoji folder.
+              Create, import, or restore a Tomoji.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-md text-xl leading-none text-island-muted hover:bg-island-orange hover:text-island-ink"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border-2 border-island-ink/20 bg-island-orange text-2xl font-black leading-none text-island-ink transition hover:border-island-ink/45 hover:bg-island-orange/75"
             aria-label="Close"
           >
-            ×
+            <IslandIcon name="close" className="h-5 w-5" />
           </button>
         </div>
 

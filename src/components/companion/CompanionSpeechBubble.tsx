@@ -1,5 +1,3 @@
-import { IslandIcon } from "../ui/IslandIcon";
-
 interface CompanionSpeechBubbleProps {
   text: string;
   scale?: number;
@@ -26,11 +24,6 @@ export function CompanionSpeechBubble({
         lineHeight: 1.3,
       }}
     >
-      <IslandIcon
-        name="dialogue"
-        className="mr-1.5 mt-0.5 h-3 w-3 shrink-0"
-        aria-hidden
-      />
       <span>{text}</span>
     </div>
   );

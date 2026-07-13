@@ -1495,7 +1495,8 @@ export function useCompanionBehavior({
         behaviorState === "sitting" ||
         behaviorState === "emoting" ||
         behaviorState === "dialoguing" ||
-        behaviorState === "falling"),
+        behaviorState === "falling" ||
+        behaviorState === "bouncing"),
     [behaviorState, isReady],
   );
 

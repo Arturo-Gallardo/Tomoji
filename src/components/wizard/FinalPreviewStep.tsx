@@ -4,6 +4,7 @@ import type { ShimejiDraftController } from "../../hooks/useShimejiDraft";
 import { ANIMATION_CATEGORIES } from "../../types/character";
 import type { AnimationCategory } from "../../types/character";
 import { AnimationPreviewPlayer } from "../preview/AnimationPreviewPlayer";
+import { CompanionSpeechBubble } from "../companion/CompanionSpeechBubble";
 
 interface FinalPreviewStepProps {
   controller: ShimejiDraftController;
@@ -71,8 +72,8 @@ export function FinalPreviewStep({ controller }: FinalPreviewStepProps) {
       <div className="island-card flex items-center justify-center py-10">
         <div className="relative flex flex-col items-center">
           {showBubble ? (
-            <div className="mb-2 max-w-[200px] rounded-2xl border border-island-ink/25 bg-island-paper px-3 py-1.5 text-center text-xs font-medium text-island-ink">
-              {previewLine}
+            <div className="mb-2">
+              <CompanionSpeechBubble text={previewLine} />
             </div>
           ) : null}
           <AnimationPreviewPlayer

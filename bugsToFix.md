@@ -2,7 +2,9 @@
 
 - if you open it through the taskbar it opens a second one
 
-redo ui - tomodachi life style`
+redo ui - tomodachi life style
+
+decide on premium features
 
 add stripe
 
