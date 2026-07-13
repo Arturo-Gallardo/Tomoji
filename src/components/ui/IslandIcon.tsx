@@ -8,6 +8,7 @@ import {
   CheckIcon,
   ClockCounterClockwiseIcon,
   CopyIcon,
+  CrownIcon,
   DotsSixVerticalIcon,
   DotsThreeIcon,
   FolderIcon,
@@ -35,6 +36,7 @@ export type IslandIconName =
   | "background"
   | "check"
   | "close"
+  | "crown"
   | "dashboard"
   | "dialogue"
   | "drag"
@@ -68,6 +70,7 @@ const ICONS: Record<IslandIconName, Icon> = {
   background: ImageIcon,
   check: CheckIcon,
   close: XIcon,
+  crown: CrownIcon,
   dashboard: GaugeIcon,
   dialogue: ChatCenteredTextIcon,
   drag: DotsSixVerticalIcon,

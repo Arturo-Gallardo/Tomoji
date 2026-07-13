@@ -1,18 +1,21 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCharactersFolderAutoSync } from "../../hooks/useCharactersFolderAutoSync";
 import { useDashboardTab } from "../../hooks/useDashboardTab";
 import { useDashboardSelectedCompanion } from "../../hooks/useDashboardSelectedCompanion";
 import { bootstrapCompanions } from "../../services/companionInstanceManager";
+import { AccountModal } from "./AccountModal";
 import { CompanionPreview } from "./CompanionPreview";
 import { DashboardCompanionSwitcher } from "./DashboardCompanionSwitcher";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardOptionsPanel } from "./DashboardOptionsPanel";
+import { PremiumView } from "./PremiumView";
 import { SettingsView } from "./SettingsView";
 import { TomojisView } from "./TomojisView";
 
 export function DashboardShell() {
   const { activeTab, setTab } = useDashboardTab();
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const reduceMotion = useReducedMotion();
   const {
     controllableInstances,
@@ -31,7 +34,11 @@ export function DashboardShell() {
 
   return (
     <main className="island-shell relative flex h-screen flex-col overflow-hidden">
-      <DashboardHeader activeTab={activeTab} onTabChange={setTab} />
+      <DashboardHeader
+        activeTab={activeTab}
+        onTabChange={setTab}
+        onAccountToggle={() => setIsAccountOpen((isOpen) => !isOpen)}
+      />
 
       <AnimatePresence initial={false} mode="wait">
         <motion.div
@@ -115,11 +122,14 @@ export function DashboardShell() {
             )}
           </div>
         </section>
+          ) : activeTab === "premium" ? (
+            <PremiumView />
           ) : (
-            <SettingsView />
+            <SettingsView onOpenPremium={() => setTab("premium")} />
           )}
         </motion.div>
       </AnimatePresence>
+      {isAccountOpen ? <AccountModal account={null} onClose={() => setIsAccountOpen(false)} /> : null}
     </main>
   );
 }

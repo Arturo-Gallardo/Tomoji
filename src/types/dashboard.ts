@@ -1,1 +1,1 @@
-export type DashboardTab = "tomojis" | "dashboard" | "settings";
+export type DashboardTab = "tomojis" | "dashboard" | "premium" | "settings";

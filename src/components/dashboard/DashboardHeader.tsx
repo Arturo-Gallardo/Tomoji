@@ -5,6 +5,7 @@ import { IslandIcon, type IslandIconName } from "../ui/IslandIcon";
 interface DashboardHeaderProps {
   activeTab: DashboardTab;
   onTabChange: (tab: DashboardTab) => void;
+  onAccountToggle: () => void;
 }
 
 type NavItemProps = {
@@ -64,7 +65,11 @@ function NavItem({
   );
 }
 
-export function DashboardHeader({ activeTab, onTabChange }: DashboardHeaderProps) {
+export function DashboardHeader({
+  activeTab,
+  onTabChange,
+  onAccountToggle,
+}: DashboardHeaderProps) {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -111,13 +116,25 @@ export function DashboardHeader({ activeTab, onTabChange }: DashboardHeaderProps
           />
         </nav>
 
-        <div className="flex min-w-0 items-center justify-end">
+        <div className="flex min-w-0 items-center justify-end gap-2">
           <button
             type="button"
-            disabled
-            title="Account and sync coming soon"
-            className="island-icon-button h-10 w-10 border-dashed opacity-80"
-            aria-label="Account coming soon"
+            onClick={() => onTabChange("premium")}
+            title="Premium"
+            className={`island-icon-button h-10 w-10 ${
+              activeTab === "premium" ? "island-button--primary" : "island-button--soft"
+            }`}
+            aria-current={activeTab === "premium" ? "page" : undefined}
+            aria-label="Open Premium"
+          >
+            <IslandIcon name="crown" className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={onAccountToggle}
+            title="Account"
+            className="island-icon-button h-10 w-10"
+            aria-label="Open account"
           >
             <IslandIcon name="profile" className="h-5 w-5" />
           </button>

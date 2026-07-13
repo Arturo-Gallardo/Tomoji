@@ -1,4 +1,5 @@
 import { useAppSettings } from "../../hooks/useAppSettings";
+import appPackage from "../../../package.json";
 import { useAutostart } from "../../hooks/useAutostart";
 import { useCompanionBackgroundToggle } from "../../hooks/useCompanionBackgroundToggle";
 import { openCharactersFolder } from "../../services/tomojiStorage";
@@ -6,7 +7,13 @@ import { IslandIcon } from "../ui/IslandIcon";
 import { SettingsSection } from "./SettingsSection";
 import { SettingsToggleRow } from "./SettingsToggleRow";
 
-export function SettingsView() {
+const APP_VERSION = appPackage.version;
+
+interface SettingsViewProps {
+  onOpenPremium: () => void;
+}
+
+export function SettingsView({ onOpenPremium }: SettingsViewProps) {
   const { settings, isLoading, updateSettings } = useAppSettings();
   const { mode: companionBackgroundMode, setMode: setCompanionBackgroundMode } =
     useCompanionBackgroundToggle();
@@ -63,6 +70,44 @@ export function SettingsView() {
             </SettingsSection>
 
             <SettingsSection
+              title="Account"
+              description="Manage Premium and account access."
+              icon="profile"
+            >
+              <div className="island-form-section flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-island-ink">Premium</p>
+                  <p className="mt-1 text-xs font-medium leading-relaxed text-island-muted">
+                    View plan details, purchase Premium, and manage active devices.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenPremium}
+                  className="island-button island-button--soft shrink-0"
+                >
+                  <IslandIcon name="crown" className="h-4 w-4" />
+                  Manage Premium
+                </button>
+              </div>
+              <div className="flex flex-col gap-3 border-t-2 border-island-ink/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-island-ink">Log out</p>
+                  <p className="mt-1 text-xs font-medium leading-relaxed text-island-muted">
+                    Available after you sign in from the profile menu.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  className="island-button island-button--soft shrink-0"
+                >
+                  Log out
+                </button>
+              </div>
+            </SettingsSection>
+
+            <SettingsSection
               title="Companion"
               description="How Tomojis behave when you open the app"
               icon="tomoji"
@@ -93,22 +138,6 @@ export function SettingsView() {
               />
             </SettingsSection>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              <SettingsSection
-                title="Account"
-                description="Profile, email, and sign-in"
-                icon="profile"
-                comingSoon
-              />
-
-              <SettingsSection
-                title="Subscription"
-                description="Plan, billing, and upgrades"
-                icon="sparkles"
-                comingSoon
-              />
-            </div>
-
             <SettingsSection
               title="Advanced"
               description="Local data and storage"
@@ -130,6 +159,32 @@ export function SettingsView() {
                 >
                   <IslandIcon name="folder" className="h-4 w-4" />
                   Open Tomojis folder
+                </button>
+              </div>
+            </SettingsSection>
+
+            <SettingsSection
+              title="Updates"
+              description="Tomoji checks for new versions when connected to the internet."
+              icon="refresh"
+            >
+              <div className="island-form-section flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-island-ink">
+                    Version {APP_VERSION}
+                  </p>
+                  <p className="mt-1 text-xs font-medium leading-relaxed text-island-muted">
+                    New versions will show a banner with a link to the Tomoji download page.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  title="Available after the release page is connected"
+                  className="island-button island-button--soft shrink-0"
+                >
+                  <IslandIcon name="refresh" className="h-4 w-4" />
+                  Check for updates
                 </button>
               </div>
             </SettingsSection>

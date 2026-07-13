@@ -29,6 +29,7 @@ Thumbs.db
 docs/Changes.md
 docs/Instructions.md
 docs/Structure.md
+plan.md
 
 # cursor rules and config (commit only if explicitly requested)
 .cursor/
