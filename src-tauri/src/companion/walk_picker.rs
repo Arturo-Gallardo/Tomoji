@@ -13,6 +13,7 @@ pub const TARGET_PICKER_OPEN_EVENT: &str = "target-picker-open";
 #[serde(rename_all = "camelCase")]
 pub struct TargetPickerOpenPayload {
     pub mode: String,
+    pub hint_x: f64,
     // companion window the picker result should be routed back to
     pub target_label: String,
 }
@@ -61,6 +62,20 @@ pub fn show_walk_picker(caller: tauri::WebviewWindow, mode: Option<String>) -> R
 
     let bounds = query_desktop_bounds()?;
     let picker_mode = mode.unwrap_or_else(|| "walk".to_string());
+    let hint_x = caller
+        .outer_position()
+        .ok()
+        .zip(caller.outer_size().ok())
+        .and_then(|(position, size)| {
+            let center_x = position.x as f64 + size.width as f64 / 2.0;
+            bounds.monitors.iter().find_map(|monitor| {
+                (center_x >= monitor.x as f64
+                    && center_x < (monitor.x + monitor.width as i32) as f64)
+                    .then(|| monitor.x as f64 + monitor.width as f64 / 2.0)
+            })
+        })
+        .unwrap_or(bounds.virtual_left as f64 + bounds.virtual_width as f64 / 2.0)
+        - bounds.virtual_left as f64;
 
     let window = app
         .get_webview_window(WALK_PICKER_WINDOW_LABEL)
@@ -85,6 +100,7 @@ pub fn show_walk_picker(caller: tauri::WebviewWindow, mode: Option<String>) -> R
             TARGET_PICKER_OPEN_EVENT,
             TargetPickerOpenPayload {
                 mode: picker_mode,
+                hint_x,
                 target_label,
             },
         )

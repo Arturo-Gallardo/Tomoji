@@ -10,15 +10,17 @@ import { IslandIcon } from "../ui/IslandIcon";
 
 export function WalkPickerWindow() {
   const [mode, setMode] = useState<TargetPickerMode>("walk");
+  const [hintX, setHintX] = useState<number | null>(null);
   // the companion window that opened this picker; picker results route back to it
   const [targetLabel, setTargetLabel] = useState<string | null>(null);
 
   useEffect(() => {
     let unlistenOpen: (() => void) | undefined;
 
-    void listenTargetPickerOpen(({ mode: nextMode, targetLabel: nextTarget }) => {
+    void listenTargetPickerOpen(({ mode: nextMode, targetLabel: nextTarget, hintX: nextHintX }) => {
       setMode(nextMode);
       setTargetLabel(nextTarget);
+      setHintX(nextHintX);
     }).then((cleanup) => {
       unlistenOpen = cleanup;
     });
@@ -94,7 +96,7 @@ export function WalkPickerWindow() {
         void handlePointerDown(event);
       }}
     >
-      <div className="pointer-events-none absolute left-1/2 top-6 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2">
+      <div className="pointer-events-none absolute top-6 w-[28rem] max-w-[calc(100vw-2rem)] -translate-x-1/2" style={{ left: hintX ?? "50%" }}>
         <div className="island-card flex items-center gap-3 px-4 py-3 text-[var(--color-island-ink)]">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-island-ink)] bg-[var(--color-island-custard)]">
             <IslandIcon name="walk" className="h-5 w-5" />

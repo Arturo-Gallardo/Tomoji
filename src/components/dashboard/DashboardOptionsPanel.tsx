@@ -175,9 +175,6 @@ export function DashboardOptionsPanel({ instance }: DashboardOptionsPanelProps) 
           />
         </div>
 
-        <p className="island-notice mt-4 px-3 py-2.5 text-xs font-semibold leading-relaxed text-island-muted">
-          {hint}
-        </p>
       </div>
     </section>
   );

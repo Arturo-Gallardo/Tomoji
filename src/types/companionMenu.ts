@@ -41,6 +41,7 @@ export interface CompanionMenuConfigPayload {
 
 export interface TargetPickerOpenPayload {
   mode: TargetPickerMode;
+  hintX: number;
   targetLabel: string;
 }
 

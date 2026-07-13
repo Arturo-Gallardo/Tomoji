@@ -57,7 +57,7 @@ export function DashboardShell() {
                   Who’s hanging out?
                 </h1>
                 <p className="mt-1 max-w-xl text-sm font-medium text-island-muted">
-                  Check in, start an activity, or change how your Tomoji appears.
+                  Choose a Tomoji, see what they are doing, and use quick controls.
                 </p>
               </div>
             </div>
