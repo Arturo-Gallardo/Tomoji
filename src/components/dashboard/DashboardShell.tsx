@@ -9,6 +9,7 @@ import { CompanionPreview } from "./CompanionPreview";
 import { DashboardCompanionSwitcher } from "./DashboardCompanionSwitcher";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardOptionsPanel } from "./DashboardOptionsPanel";
+import { DashboardTitleBar } from "./DashboardTitleBar";
 import { PremiumView } from "./PremiumView";
 import { SettingsView } from "./SettingsView";
 import { TomojisView } from "./TomojisView";
@@ -34,6 +35,7 @@ export function DashboardShell() {
 
   return (
     <main className="island-shell relative flex h-screen flex-col overflow-hidden">
+      <DashboardTitleBar />
       <DashboardHeader
         activeTab={activeTab}
         onTabChange={setTab}

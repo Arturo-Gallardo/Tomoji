@@ -121,6 +121,58 @@ button:not(:disabled),
   background: var(--color-island-paper);
 }
 
+.tomoji-titlebar {
+  display: flex;
+  height: 2rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 0.85rem;
+  border-bottom: 2px solid rgba(24, 52, 79, 0.28);
+  color: var(--color-island-ink);
+  background: var(--color-island-sun-deep);
+  user-select: none;
+}
+
+.tomoji-titlebar__brand {
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.tomoji-titlebar__controls {
+  display: flex;
+  align-self: stretch;
+}
+
+.tomoji-titlebar__button {
+  display: grid;
+  width: 2.75rem;
+  place-items: center;
+  border: 0;
+  color: var(--color-island-ink);
+  background: transparent;
+}
+
+.tomoji-titlebar__button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.tomoji-titlebar__button:hover {
+  background: rgba(255, 252, 245, 0.5);
+}
+
+.tomoji-titlebar__button:focus-visible {
+  outline-offset: -3px;
+}
+
+.tomoji-titlebar__button--close:hover {
+  color: var(--color-island-paper);
+  background: var(--color-island-action);
+}
+
 .island-nav {
   display: flex;
   align-items: center;
