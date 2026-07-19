@@ -14,7 +14,9 @@ import { toPhysicalScreenPosition } from "../utils/screenCoordinates";
 
 const RESIST_DURATION_MS = 200;
 const VELOCITY_SAMPLE_COUNT = 3;
-const VELOCITY_EMA_ALPHA = 0.25;
+// Drag lean must react within a couple pointer events; heavier smoothing never
+// reaches strong tiers during quick throws.
+const VELOCITY_EMA_ALPHA = 0.5;
 
 interface PointerSample {
   x: number;

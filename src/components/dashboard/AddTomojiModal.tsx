@@ -30,14 +30,14 @@ export function AddTomojiModal({
     },
     {
       id: "import-shimeji",
-      label: "Import Shimeji pack",
-      description: "Keep its actions, timing, sprites, and movement.",
+      label: "Import downloaded Shimeji (PC or Android)",
+      description: "Use this for a character pack you downloaded. ZIP/RAR? Extract it first.",
       onSelect: onImportShimeji,
     },
     {
       id: "import-tomoji",
-      label: "Import Tomoji folder",
-      description: "Restore a converted Tomoji character.",
+      label: "Restore Tomoji backup folder",
+      description: "Only use this for a Tomoji folder with manifest.json and sprites.",
       onSelect: onImportTomoji,
     },
   ];

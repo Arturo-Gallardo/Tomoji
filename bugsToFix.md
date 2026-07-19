@@ -8,7 +8,7 @@
 
 make flow easier to understand
 
-fix sprite names import logic
+- fix sprite names import logic
 
 add stripe
 

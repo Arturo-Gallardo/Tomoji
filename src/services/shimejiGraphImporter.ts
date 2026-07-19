@@ -65,7 +65,9 @@ const ACTION_INTENT_CANDIDATES: Record<ShimejiActionIntent, readonly string[]> =
   dangleOnBar: ["SitAndDangleLegs", "足をぶらぶらさせる", "SitWhileDanglingLegs", "座って足をぶらぶらさせる"],
   fall: ["Fall", "落下する", "Falling", "落ちる", "FallWithIe", "IEを持って落ちる"],
   bounce: ["Bouncing", "跳ねる"],
-  dragged: ["Dragged", "ドラッグされる", "Pinched", "つままれる"],
+  // Tomoji drag selects a still pose from velocity tiers. Shimeji's Pinched
+  // strip matches that model; Dragged is often a timed sequence and skips.
+  dragged: ["Pinched", "つままれる", "Dragged", "ドラッグされる"],
   dragResist: ["Resisting", "抵抗する", "Pinched", "つままれる"],
   grabWall: ["HoldOntoWall", "壁に掴まってボーっとする", "GrabWall", "壁に掴まる"],
   climbWall: ["ClimbWall", "壁を登る", "ClimbAlongWall", "ワークエリアの壁を登る"],
@@ -159,7 +161,11 @@ interface AndroidAnimationFile {
 }
 
 export async function pickShimejiGraphFolder(): Promise<string | null> {
-  return pickDirectory("Select the Shimeji folder or img sprite folder");
+  return pickDirectory("Select the extracted Shimeji character folder");
+}
+
+export async function pickShimejiGraphSpriteFolder(): Promise<string | null> {
+  return pickDirectory("Select the img sprite folder");
 }
 
 export async function pickShimejiGraphActionsFile(): Promise<string | null> {

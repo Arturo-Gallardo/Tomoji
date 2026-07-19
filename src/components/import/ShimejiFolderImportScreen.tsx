@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TomojiPageHeader } from "../dashboard/TomojiPageHeader";
 import { TomojiPageLayout } from "../dashboard/TomojiPageLayout";
+import { IslandIcon } from "../ui/IslandIcon";
+import { ShimejiImportGuide } from "./ShimejiImportGuide";
 import {
   analyzeShimejiGraphImportSelection,
   buildShimejiGraphDraftFromFolder,
@@ -9,6 +11,7 @@ import {
   pickShimejiGraphActionsFile,
   pickShimejiGraphBehaviorsFile,
   pickShimejiGraphFolder,
+  pickShimejiGraphSpriteFolder,
   type ShimejiGraphDraft,
   type ShimejiImportFormat,
   type ShimejiGraphImportScan,
@@ -60,7 +63,7 @@ function FolderTreeExample({ format }: { format: ShimejiImportFormat }) {
 |   |-- 0000.webp
 |   |-- 0001.webp
 |   |-- ...`
-  : `PC Shimeji folder/
+  : `PC Shimeji folder/  <- click this to scan everything
 |-- Shimeji-ee.jar      <- ignored
 |-- conf/
 |   |-- actions.xml     <- required
@@ -81,12 +84,22 @@ function FolderTreeExample({ format }: { format: ShimejiImportFormat }) {
       ) : (
         <>
           <p className="mt-3 text-xs text-neutral-500">
-            Choose the folder that contains{" "}
-            <span className="text-neutral-300">conf</span> and{" "}
-            <span className="text-neutral-300">img</span>. If the character
-            folder inside <span className="text-neutral-300">img</span> has its
-            own <span className="text-neutral-300">conf</span>, choose that
-            character folder instead.
+            <strong className="text-neutral-200">Easy option:</strong> choose
+            the top-level <span className="text-neutral-300">PC Shimeji folder</span>{" "}
+            shown above. Tomoji scans it and finds the XML files and sprite
+            images automatically.
+          </p>
+          <p className="mt-2 text-xs text-neutral-500">
+            <strong className="text-neutral-200">Manual option:</strong> choose
+            the <span className="text-neutral-300">img</span> folder (or the
+            character folder inside it) for sprites, then choose{" "}
+            <span className="text-neutral-300">actions.xml</span> and optionally{" "}
+            <span className="text-neutral-300">behaviors.xml</span> separately.
+          </p>
+          <p className="mt-2 text-xs text-neutral-500">
+            If the character folder inside <span className="text-neutral-300">img</span>{" "}
+            has its own <span className="text-neutral-300">conf</span>, choose
+            that character folder as the easy option instead.
           </p>
           <p className="mt-2 text-xs text-neutral-500">
             Tomoji reads <span className="text-neutral-300">actions.xml</span>{" "}
@@ -126,7 +139,7 @@ function ImportPreview({ draft }: { draft: ShimejiGraphDraft }) {
   }, []);
 
   return (
-    <div className="mt-4 min-w-0 space-y-4">
+    <div className="mt-4 min-w-0">
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <ShimejiGraphActionBrowser
           graph={draft.graph}
@@ -141,21 +154,29 @@ function ImportPreview({ draft }: { draft: ShimejiGraphDraft }) {
         />
       </div>
 
-      <div className="rounded-xl border border-neutral-800 bg-black/20 p-4 text-xs text-neutral-400">
-        <p>
-          Runtime canvas: {draft.graph.spriteCanvas.width}x
-          {draft.graph.spriteCanvas.height}
-        </p>
-        <p className="mt-1">
-          Imported: {draft.graph.importReport.actionsParsed} actions,{" "}
-          {draft.graph.importReport.posesParsed} poses
-        </p>
-        {draft.graph.baseDisplayScale && draft.graph.baseDisplayScale < 1 ? (
-          <p className="mt-1 text-island-orange">
-            1x uses a fitted desktop size, with full-resolution sprites preserved.
-          </p>
-        ) : null}
-      </div>
+    </div>
+  );
+}
+
+function FileSelectionStatus({
+  label,
+  path,
+  optional = false,
+}: {
+  label: string;
+  path: string | null;
+  optional?: boolean;
+}) {
+  const isFound = path !== null;
+
+  return (
+    <div className="flex min-w-0 items-start gap-2 rounded-lg border border-island-ink/15 bg-island-paper/70 px-3 py-2">
+      <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isFound ? "bg-island-mint text-island-ink" : "bg-red-100 text-red-700"}`}>
+        <IslandIcon name={isFound ? "check" : "close"} className="h-3.5 w-3.5" />
+      </span>
+      <span className="min-w-0 text-xs leading-relaxed text-island-muted">
+        <strong className="text-island-ink">{label}</strong>{optional ? " (optional)" : ""}: {isFound ? <span className="break-all">selected — {path}</span> : "not selected"}
+      </span>
     </div>
   );
 }
@@ -179,6 +200,8 @@ export function ShimejiFolderImportScreen({
     null,
   );
   const [scan, setScan] = useState<ShimejiGraphImportScan | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
+  const [isReviewStep, setIsReviewStep] = useState(false);
 
   const loadFolder = useCallback(
     async (
@@ -192,6 +215,7 @@ export function ShimejiFolderImportScreen({
 
       setIsLoadingFolder(true);
       setError(null);
+      setIsReviewStep(false);
       try {
         const nextScan = await analyzeShimejiGraphImportSelection(
           folderPath,
@@ -232,6 +256,7 @@ export function ShimejiFolderImportScreen({
     setSelectedFolderPath(null);
     setActionsXmlPath(null);
     setBehaviorsXmlPath(null);
+    setIsReviewStep(false);
   };
 
   const handleImport = async () => {
@@ -273,6 +298,15 @@ export function ShimejiFolderImportScreen({
     if (selectedFolderPath !== null) {
       await loadFolder(selectedFolderPath, filePath, behaviorsXmlPath);
     }
+  };
+
+  const handleChooseSpriteFolder = async () => {
+    const folderPath = await pickShimejiGraphSpriteFolder();
+    if (folderPath === null) {
+      return;
+    }
+
+    await loadFolder(folderPath, actionsXmlPath, behaviorsXmlPath);
   };
 
   const handleChooseBehaviorsFile = async () => {
@@ -324,14 +358,33 @@ export function ShimejiFolderImportScreen({
     <TomojiPageLayout
       header={
         <TomojiPageHeader
-          title="Import Shimeji"
-          subtitle="Auto-convert a Shimeji folder into Tomoji"
-          onBack={onClose}
+          title={showGuide ? "Shimeji import guide" : isReviewStep ? "Name and preview" : "Import downloaded Shimeji"}
+          subtitle={showGuide ? "Follow these steps, then choose one character folder." : isReviewStep ? "Check the actions, name your Tomoji, then import." : "Choose one extracted character folder. Never choose a ZIP/RAR or individual images."}
+          onBack={showGuide ? () => setShowGuide(false) : isReviewStep ? () => setIsReviewStep(false) : onClose}
+          backLabel={showGuide ? "Back to import" : isReviewStep ? "Back" : undefined}
+          trailing={
+            !showGuide && !isReviewStep ? (
+              <button type="button" onClick={() => setShowGuide(true)} className="island-button island-button--soft text-sm">
+                Show guide
+              </button>
+            ) : undefined
+          }
         />
       }
     >
+      {showGuide ? <ShimejiImportGuide onStartImport={() => setShowGuide(false)} /> : (
       <div className="shimeji-import-screen grid min-w-0 gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="min-w-0 space-y-5">
+        <div className={isReviewStep ? "hidden" : "min-w-0 space-y-5"}>
+          <div className="rounded-xl border-2 border-island-ink/15 bg-island-custard/35 px-4 py-3 text-sm text-island-muted">
+            Not sure which folder to choose?{" "}
+            <button
+              type="button"
+              onClick={() => setShowGuide(true)}
+              className="font-extrabold text-island-ink underline decoration-2 decoration-island-orange underline-offset-4 transition hover:text-island-orange"
+            >
+              How to import a Shimeji
+            </button>
+          </div>
           <div
             className={`rounded-2xl border border-dashed p-6 transition ${
               isDropActive
@@ -356,12 +409,12 @@ export function ShimejiFolderImportScreen({
               </select>
             </label>
             <p className="mt-5 text-sm font-extrabold text-island-ink">
-              Drop the {FORMAT_LABELS[importFormat]} folder here
+              Drop one extracted {FORMAT_LABELS[importFormat]} character folder here
             </p>
             <p className="mt-2 text-sm leading-relaxed text-island-muted">
               {importFormat === "android" ? (
                 <>
-                  Select the folder with{" "}
+                  Pick the folder with{" "}
                   <span className="font-bold text-island-ink">manifest.json</span>,{" "}
                   <span className="text-neutral-200">animation.json</span>, and{" "}
                   <span className="text-neutral-200">sprites</span>. No XML
@@ -369,11 +422,10 @@ export function ShimejiFolderImportScreen({
                 </>
               ) : (
                 <>
-                  Select the folder with{" "}
+                  Pick the folder with{" "}
                   <span className="text-neutral-200">conf/actions.xml</span>{" "}
-                  and <span className="text-neutral-200">img</span>. If XML and
-                  sprites are split, choose the folder first, then choose the
-                  XML files below.
+                  and <span className="text-neutral-200">img</span>. Or select
+                  the img folder and XML files separately below.
                 </>
               )}
             </p>
@@ -386,10 +438,23 @@ export function ShimejiFolderImportScreen({
               >
                 {isLoadingFolder
                   ? "Reading..."
-                  : `Choose ${FORMAT_LABELS[importFormat]} folder`}
+                  : `Choose extracted ${FORMAT_LABELS[importFormat]} folder`}
               </button>
-              {importFormat === "pc" ? (
-                <>
+            </div>
+            {importFormat === "pc" ? (
+              <div className="mt-3">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-island-muted before:h-px before:flex-1 before:bg-island-ink/15 after:h-px after:flex-1 after:bg-island-ink/15">
+                  Or choose files individually
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={isLoadingFolder || isImporting}
+                    onClick={() => void handleChooseSpriteFolder()}
+                    className="island-button island-button--soft disabled:opacity-50"
+                  >
+                    Choose img folder
+                  </button>
                   <button
                     type="button"
                     disabled={isLoadingFolder || isImporting}
@@ -406,9 +471,24 @@ export function ShimejiFolderImportScreen({
                   >
                     Choose behaviors XML
                   </button>
-                </>
-              ) : null}
-            </div>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <FileSelectionStatus
+                    label="img folder"
+                    path={scan?.spriteDir ?? null}
+                  />
+                  <FileSelectionStatus
+                    label="actions.xml"
+                    path={actionsXmlPath ?? scan?.actionsXmlPath ?? null}
+                  />
+                  <FileSelectionStatus
+                    label="behaviors.xml"
+                    path={behaviorsXmlPath ?? scan?.behaviorsXmlPath ?? null}
+                    optional
+                  />
+                </div>
+              </div>
+            ) : null}
             {importFormat === "pc" && actionsXmlPath ? (
               <p className="mt-3 text-xs text-neutral-500">
                 Selected actions XML: {actionsXmlPath}
@@ -453,11 +533,27 @@ export function ShimejiFolderImportScreen({
           ) : null}
         </div>
 
-        <FolderTreeExample format={importFormat} />
+        {isReviewStep ? null : <FolderTreeExample format={importFormat} />}
 
-        {draft ? (
+        {draft && !isReviewStep ? (
+          <div className="island-card flex flex-wrap items-center justify-between gap-4 p-5 lg:col-span-2">
+            <div>
+              <p className="text-base font-extrabold text-island-ink">Character folder is ready</p>
+              <p className="mt-1 text-sm text-island-muted">Next, choose its Tomoji name and preview its actions.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsReviewStep(true)}
+              className="island-button island-button--primary"
+            >
+              Continue to name and preview
+            </button>
+          </div>
+        ) : null}
+
+        {draft && isReviewStep ? (
           <div className="island-card min-w-0 overflow-hidden p-5 lg:col-span-2">
-            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+            <div className="min-w-0">
               <div>
                 <label className="block text-sm font-extrabold text-island-ink">
                   Tomoji name
@@ -468,31 +564,9 @@ export function ShimejiFolderImportScreen({
                     placeholder={draft.name}
                   />
                 </label>
-                <p className="mt-2 text-xs font-medium text-island-muted">
-                  Default comes from folder name. Change it before importing if
-                  you want.
+                <p className="mt-2 text-sm leading-relaxed text-island-muted">
+                  Name your Tomoji, preview its actions below, then import when it looks right.
                 </p>
-                <p className="mt-4 text-xs font-medium text-island-muted">
-                  Parsed {draft.graph.importReport.actionsParsed} actions,{" "}
-                  {draft.graph.importReport.behaviorsParsed} behaviors, and{" "}
-                  {draft.graph.importReport.posesParsed} poses. Runtime canvas:{" "}
-                  {draft.graph.spriteCanvas.width}x
-                  {draft.graph.spriteCanvas.height}, scale{" "}
-                  {draft.scale.toFixed(2)}x.
-                </p>
-                <p className="mt-2 text-xs font-medium text-island-muted">
-                  Graph imports keep original action timing and frame order.
-                  Preview actions below; individual frames are not edited in this
-                  flow.
-                </p>
-                {draft.graph.menuActions.length > 0 ? (
-                  <p className="mt-2 text-xs font-medium text-island-muted">
-                    Menu animations:{" "}
-                    {draft.graph.menuActions
-                      .map((action) => action.label)
-                      .join(", ")}
-                  </p>
-                ) : null}
                 <button
                   type="button"
                   disabled={isImporting || name.trim() === ""}
@@ -503,21 +577,13 @@ export function ShimejiFolderImportScreen({
                 </button>
               </div>
 
-              <div>
-                {draft.graph.importReport.issues.length > 0 ? (
-                  <ul className="island-notice island-notice--warning space-y-1 p-3 text-xs font-medium text-island-ink">
-                    {draft.graph.importReport.issues.map((issue) => (
-                      <li key={issue.message}>{issue.message}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
             </div>
 
             <ImportPreview draft={draft} />
           </div>
         ) : null}
       </div>
+      )}
     </TomojiPageLayout>
   );
 }

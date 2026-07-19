@@ -47,16 +47,16 @@ export function TomojiImportScreen({
       header={
         <TomojiPageHeader
           title="Import Tomoji"
-          subtitle="Restore an editable Tomoji character folder"
+          subtitle="Only for Tomoji backups — not downloaded Shimeji packs"
           onBack={onClose}
         />
       }
     >
       <div className="grid max-w-4xl gap-6 lg:grid-cols-2">
         <section className="island-card p-5">
-          <h2 className="text-base font-extrabold text-island-ink">Choose a Tomoji folder</h2>
+          <h2 className="text-base font-extrabold text-island-ink">Choose your extracted Tomoji backup folder</h2>
           <p className="mt-2 text-sm font-medium leading-relaxed text-island-muted">
-            Select an exported Tomoji character folder. Nothing is uploaded.
+            Pick folder containing <strong>manifest.json</strong> and <strong>sprites</strong>. Do not choose a ZIP/RAR, individual files, or a downloaded Shimeji pack. Nothing uploads.
           </p>
           <button
             type="button"
@@ -64,7 +64,7 @@ export function TomojiImportScreen({
             onClick={handleChooseFolder}
             className="island-button island-button--primary mt-5 disabled:opacity-50"
           >
-            {isImporting ? "Importing..." : "Choose Tomoji folder"}
+            {isImporting ? "Importing..." : "Choose Tomoji backup folder"}
           </button>
         </section>
 
