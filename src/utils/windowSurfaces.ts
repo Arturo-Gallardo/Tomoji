@@ -1,7 +1,6 @@
 import {
   SPRITE_ANCHOR,
   SPRITE_HEIGHT,
-  TITLE_BAR_SIT_Y_OFFSET,
 } from "../animations/companionGeometry";
 import type {
   MonitorWorkArea,
@@ -232,12 +231,10 @@ export function resolveFloorYAt(
   monitors: MonitorWorkArea[],
   lockedSurface: WindowSurface | null,
   surfaceLock: SurfaceLock | null,
-  titleBarSitPose = false,
+  titleBarSitYOffset = 0,
 ): number {
   if (lockedSurface && surfaceLock && isTitleBarLock(surfaceLock.kind)) {
-    return (
-      lockedSurface.top + (titleBarSitPose ? TITLE_BAR_SIT_Y_OFFSET : 0)
-    );
+    return lockedSurface.top + titleBarSitYOffset;
   }
 
   return getFloorYAt(x, y, monitors);

@@ -2,9 +2,13 @@
 
 - if you open it through the taskbar it opens a second one
 
-redo ui - tomodachi life style
+- redo ui - tomodachi life style
 
-decide on premium features
+- decide on premium features
+
+make flow easier to understand
+
+fix sprite names import logic
 
 add stripe
 

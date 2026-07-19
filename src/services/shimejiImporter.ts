@@ -316,7 +316,7 @@ async function findBestSpriteDir(rootDir: string): Promise<string> {
   for (const dir of dirs) {
     const entries = await listDirectory(dir);
     const score = entries.filter(
-      (entry) => entry.isFile && isShimejiFrameName(entry.name),
+      (entry) => entry.isFile && isSupportedImageFile(entry.name),
     ).length;
 
     if (score > bestScore) {
@@ -406,10 +406,7 @@ async function findShimejiPackage(
 
   const inputSpriteDir = await findBestSpriteDir(inputDir);
   const inputSources = await listImageFramesRecursive(inputSpriteDir);
-  if (
-    explicitConfigDir &&
-    inputSources.some((source) => isShimejiFrameName(source.name))
-  ) {
+  if (explicitConfigDir && inputSources.length > 0) {
     return {
       rootDir: explicitConfigDir,
       configDir: explicitConfigDir,
@@ -434,7 +431,7 @@ async function findShimejiPackage(
     };
   }
 
-  if (inputSources.some((source) => isShimejiFrameName(source.name))) {
+  if (inputSources.length > 0) {
     const configDir = await findNearestConfigDir(inputSpriteDir);
     return {
       rootDir: configDir ?? inputSpriteDir,
@@ -463,9 +460,7 @@ export async function analyzeShimejiImportSelection(
     explicitActionsConfigDir ?? explicitBehaviorsConfigDir;
   const spriteDir = await findBestSpriteDir(inputDir);
   const sources = await listImageFramesRecursive(spriteDir);
-  const frameCount = sources.filter((source) =>
-    isShimejiFrameName(source.name),
-  ).length;
+  const frameCount = sources.length;
   const configDir =
     explicitConfigDir ??
     (await findConfigDirs(inputDir))[0] ??
@@ -479,10 +474,10 @@ export async function analyzeShimejiImportSelection(
 
   const messages: string[] = [];
   if (frameCount > 0) {
-    messages.push(`Found ${frameCount} shime*.png frames in ${spriteDir}.`);
+    messages.push(`Found ${frameCount} image frames in ${spriteDir}.`);
   } else {
     messages.push(
-      "No shime*.png frames found. Choose the img folder or character folder that contains the sprite PNGs.",
+      "No supported image frames found. Choose the img folder or character folder that contains the sprite images.",
     );
   }
 
@@ -1152,16 +1147,16 @@ export async function buildShimejiDraftFromFolder(
     behaviorsXmlPath,
   );
   if (shimeji === null) {
-    throw new Error("No Shimeji frames found. Choose the folder with conf/actions.xml and img, or a character folder inside img that directly contains shime*.png.");
+    throw new Error("No Shimeji frames found. Choose the folder with conf/actions.xml and sprite images, or a character folder inside img.");
   }
 
-  const sources = shimeji.sources.filter((source) =>
+  const classicSources = shimeji.sources.filter((source) =>
     isShimejiFrameName(source.name),
   );
   const actions = await parseShimejiActions(shimeji);
   const behaviors = await parseShimejiBehaviors(shimeji);
   const assignments = buildAssignmentsFromActions(actions, behaviors);
-  fillClassicAssignments(assignments, sources);
+  fillClassicAssignments(assignments, classicSources);
   compactEmoteAssignments(assignments);
 
   if (assignments.idle.frames.length === 0 || assignments.walk.frames.length === 0) {
@@ -1172,12 +1167,12 @@ export async function buildShimejiDraftFromFolder(
   const measuredFrame = await measureMaxFrameSize(
     assignedPaths.length > 0
       ? assignedPaths
-      : sources.map((source) => source.path),
+      : shimeji.sources.map((source) => source.path),
   );
 
   return {
     imgDir: shimeji.spriteDir,
-    sources,
+    sources: shimeji.sources,
     assignments,
     name: await defaultShimejiName(shimeji),
     dialogueLines: [],

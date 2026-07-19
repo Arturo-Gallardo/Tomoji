@@ -179,10 +179,6 @@ function isSupportedImageFile(name: string): boolean {
   return extension !== undefined && SUPPORTED_IMAGE_EXTENSIONS.has(extension);
 }
 
-function isShimejiFrameName(name: string): boolean {
-  return /^shime\d+[a-z]*\.[^.]+$/i.test(name) && isSupportedImageFile(name);
-}
-
 async function safePathExists(path: string): Promise<boolean> {
   try {
     return await pathExists(path);
@@ -249,7 +245,7 @@ async function findBestSpriteDir(rootDir: string): Promise<string> {
 
   for (const dir of await listDirsRecursive(rootDir)) {
     const score = (await listDirectory(dir)).filter(
-      (entry) => entry.isFile && isShimejiFrameName(entry.name),
+      (entry) => entry.isFile && isSupportedImageFile(entry.name),
     ).length;
 
     if (score > bestScore) {
@@ -384,7 +380,7 @@ async function findShimejiPackage(
 
   const spriteDir = await findBestSpriteDir(inputDir);
   const sources = await listImageFramesRecursive(spriteDir);
-  if (!sources.some((source) => isShimejiFrameName(source.name))) {
+  if (sources.length === 0) {
     return null;
   }
 
@@ -431,7 +427,7 @@ export async function analyzeShimejiGraphImportSelection(
       messages: [
         format === "android"
           ? "No Android Shimeji manifest/animation/sprites found. Choose the folder with manifest.json, animation.json, and sprites."
-          : "No shime*.png frames found. Choose the character img folder or full Shimeji folder.",
+          : "No supported sprite images found. Choose the character img folder or full Shimeji folder.",
       ],
     };
   }
@@ -439,7 +435,7 @@ export async function analyzeShimejiGraphImportSelection(
   const frameCount =
     format === "android"
       ? shimeji.sources.length
-      : shimeji.sources.filter((source) => isShimejiFrameName(source.name)).length;
+      : shimeji.sources.length;
   messages.push(`Found ${frameCount} sprite frame(s) in ${shimeji.spriteDir}.`);
 
   if (format === "android") {

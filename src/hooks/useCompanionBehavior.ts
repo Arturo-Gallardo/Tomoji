@@ -416,7 +416,8 @@ export function useCompanionBehavior({
     if (
       currentState !== "idle" &&
       currentState !== "walking" &&
-      currentState !== "dialoguing"
+      currentState !== "dialoguing" &&
+      currentState !== "bouncing"
     ) {
       return;
     }
@@ -433,7 +434,8 @@ export function useCompanionBehavior({
         currentState !== "walking" &&
         currentState !== "sitting" &&
         currentState !== "dialoguing" &&
-        currentState !== "emoting"
+        currentState !== "emoting" &&
+        currentState !== "bouncing"
       ) {
         return;
       }
@@ -867,7 +869,6 @@ export function useCompanionBehavior({
       if (
         currentState === "dragging" ||
         currentState === "falling" ||
-        currentState === "bouncing" ||
         currentState === "climbing"
       ) {
         return;
@@ -901,7 +902,6 @@ export function useCompanionBehavior({
       if (
         currentState === "dragging" ||
         currentState === "falling" ||
-        currentState === "bouncing" ||
         currentState === "climbing"
       ) {
         return;

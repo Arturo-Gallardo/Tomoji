@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { TITLE_BAR_SIT_Y_OFFSET } from "../../animations/companionGeometry";
 import { useAppSettings } from "../../hooks/useAppSettings";
 import {
   DEFAULT_BEHAVIOR_SETTINGS,
@@ -31,6 +32,7 @@ import { IslandIcon } from "../ui/IslandIcon";
 const DEFAULT_SURFACE_ATTACHMENT_OFFSETS: SurfaceAttachmentOffsets = {
   wall: 0,
   ceiling: 0,
+  titleBar: TITLE_BAR_SIT_Y_OFFSET,
 };
 
 function instanceBehavior(instance: CompanionInstance): BehaviorSettings {
@@ -216,8 +218,10 @@ export function CharacterSettingsEditor({
       setCharacterSource(entry?.source ?? null);
       const manifest = entry?.manifest;
       const nextSurfaceOffsets =
-        manifest?.surfaceAttachmentOffsets ??
-        DEFAULT_SURFACE_ATTACHMENT_OFFSETS;
+        {
+          ...DEFAULT_SURFACE_ATTACHMENT_OFFSETS,
+          ...manifest?.surfaceAttachmentOffsets,
+        };
       setSurfaceOffsets(nextSurfaceOffsets);
       setSavedSurfaceOffsets(nextSurfaceOffsets);
 

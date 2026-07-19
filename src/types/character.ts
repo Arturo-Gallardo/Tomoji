@@ -147,6 +147,8 @@ export interface SurfaceAttachmentOffsets {
   wall: number;
   // positive pushes underside crawls farther below the window
   ceiling: number;
+  // title-bar sit anchor offset; positive pushes sprites farther below the bar
+  titleBar: number;
 }
 
 export type AnimationPlaybackStyle = "shimeji" | "sequential";

@@ -2,6 +2,7 @@ import {
   SPRITE_HEIGHT,
   TICK_INTERVAL_MS,
   TITLE_BAR_SIT_ANCHOR,
+  TITLE_BAR_SIT_Y_OFFSET,
   UNDERSIDE_GRAB_ANCHOR,
 } from "../animations/companionGeometry";
 import {
@@ -50,6 +51,7 @@ export interface AnimationRegistry {
   baseDisplayScale: number;
   getWallAnchorXOffset: (kind: "wallLeft" | "wallRight") => number;
   getUndersideAnchorYOffset: () => number;
+  getTitleBarSitYOffset: () => number;
   getAnimation: (action: CompanionAction) => RuntimeAnimation;
   getSpriteAnchor: (action: CompanionAction) => SpriteAnchor;
   resolveDisplayAction: (
@@ -493,6 +495,11 @@ async function buildImportedRegistry(
         manifest.surfaceAttachmentOffsets?.ceiling,
         1,
       ),
+    getTitleBarSitYOffset: () =>
+      displayOffsetToSpriteOffset(
+        manifest.surfaceAttachmentOffsets?.titleBar ?? TITLE_BAR_SIT_Y_OFFSET,
+        1,
+      ),
     getAnimation,
     getSpriteAnchor: (action) => importedSpriteAnchor(action, width, height),
     resolveDisplayAction,
@@ -684,6 +691,10 @@ async function buildShimejiGraphRegistry(
     manifest.surfaceAttachmentOffsets?.ceiling,
     baseDisplayScale,
   );
+  const titleBarOffset = displayOffsetToSpriteOffset(
+    manifest.surfaceAttachmentOffsets?.titleBar ?? TITLE_BAR_SIT_Y_OFFSET,
+    baseDisplayScale,
+  );
 
   return {
     playbackStyle: "sequential",
@@ -697,6 +708,8 @@ async function buildShimejiGraphRegistry(
     getUndersideAnchorYOffset: () =>
       graph.spriteCanvas.height * (UNDERSIDE_GRAB_ANCHOR.y / SPRITE_HEIGHT) -
       ceilingOffset,
+    getTitleBarSitYOffset: () =>
+      titleBarOffset,
     getAnimation,
     getSpriteAnchor: (action) => graphSpriteAnchor(action, graph),
     resolveDisplayAction,

@@ -242,10 +242,12 @@ export function useCompanionMovement(
         bounds.monitors,
         getLockedSurface(),
         surfaceLockRef.current,
-        usesTitleBarSitAnchorRef?.current ?? false,
+        usesTitleBarSitAnchorRef?.current
+          ? registry.getTitleBarSitYOffset() * scale
+          : 0,
       );
     },
-    [getLockedSurface, usesTitleBarSitAnchorRef],
+    [getLockedSurface, registry, scale, usesTitleBarSitAnchorRef],
   );
 
   const clampHorizontalX = useCallback(

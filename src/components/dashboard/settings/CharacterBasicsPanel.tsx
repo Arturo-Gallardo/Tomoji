@@ -61,6 +61,7 @@ export function CharacterBasicsPanel({
   const speedInputId = useId();
   const wallOffsetInputId = useId();
   const ceilingOffsetInputId = useId();
+  const titleBarOffsetInputId = useId();
 
   return (
     <div className="space-y-5">
@@ -256,13 +257,12 @@ export function CharacterBasicsPanel({
                 Window attach offset
               </h2>
               <p className="mt-1 text-sm font-medium leading-relaxed text-island-muted">
-                Fine-tune wall grabs and underside crawls. Positive values push
-                the sprite farther outside the window edge.
+                Fine-tune wall grabs, underside crawls, and title-bar sits.
               </p>
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="island-form-section">
               <div className="flex items-center justify-between gap-2">
                 <label
@@ -331,6 +331,43 @@ export function CharacterBasicsPanel({
               <span className="mt-2 flex justify-between text-[10px] font-bold text-island-muted">
                 <span>Inside</span>
                 <span>Outside</span>
+              </span>
+            </div>
+
+            <div className="island-form-section">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor={titleBarOffsetInputId}
+                  className="text-sm font-extrabold text-island-ink"
+                >
+                  Title bars
+                </label>
+                <output
+                  htmlFor={titleBarOffsetInputId}
+                  className="island-badge"
+                >
+                  {surfaceOffsets.titleBar}px
+                </output>
+              </div>
+              <input
+                id={titleBarOffsetInputId}
+                type="range"
+                min={-80}
+                max={80}
+                step={1}
+                value={surfaceOffsets.titleBar}
+                aria-valuetext={`${surfaceOffsets.titleBar} pixels`}
+                onChange={(event) =>
+                  onSurfaceOffsetsChange((current) => ({
+                    ...current,
+                    titleBar: Number(event.target.value),
+                  }))
+                }
+                className="island-slider mt-4 w-full"
+              />
+              <span className="mt-2 flex justify-between text-[10px] font-bold text-island-muted">
+                <span>Higher</span>
+                <span>Lower</span>
               </span>
             </div>
           </div>
