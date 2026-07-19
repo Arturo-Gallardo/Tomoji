@@ -36,8 +36,8 @@ export function AddTomojiModal({
     },
     {
       id: "import-tomoji",
-      label: "Restore Tomoji backup folder",
-      description: "Only use this for a Tomoji folder with manifest.json and sprites.",
+      label: "Import Tomoji folder",
+      description: "Use any Tomoji character folder with manifest.json and sprites.",
       onSelect: onImportTomoji,
     },
   ];

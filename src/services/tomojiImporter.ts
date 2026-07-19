@@ -1,4 +1,4 @@
-import type { CharacterManifest } from "../types/character";
+import type { AnimationCategory, CharacterManifest } from "../types/character";
 import { addCharacter, allocateNewTomojiFolderName } from "./characterLibrary";
 import { characterDirPath, characterManifestPath } from "./fs/appPaths";
 import {
@@ -21,6 +21,13 @@ export interface TomojiImportResult {
   ok: boolean;
   characterId?: string;
   errors: string[];
+  warnings: string[];
+}
+
+export interface TomojiImportScan {
+  sourceDir: string;
+  manifest: CharacterManifest;
+  animationFramePaths: Partial<Record<AnimationCategory, string[]>>;
   warnings: string[];
 }
 
@@ -59,14 +66,13 @@ async function copyManifestAssets(
   }
 }
 
-// lets the user pick a Tomoji character folder, validates it, copies it into
-// the library and registers it. returns a typed report for the UI.
-export async function importTomojiFromFolder(): Promise<TomojiImportResult | null> {
-  const sourceDir = await pickDirectory("Select a Tomoji character folder");
-  if (sourceDir === null) {
-    return null;
-  }
+export async function pickTomojiImportFolder(): Promise<string | null> {
+  return pickDirectory("Select a Tomoji character folder");
+}
 
+export async function scanTomojiImportFolder(
+  sourceDir: string,
+): Promise<TomojiImportScan | TomojiImportResult> {
   const manifestPath = await joinPath(sourceDir, "manifest.json");
   if (!(await pathExists(manifestPath))) {
     return { ok: false, errors: ["manifest.json not found in folder"], warnings: [] };
@@ -91,11 +97,37 @@ export async function importTomojiFromFolder(): Promise<TomojiImportResult | nul
     return { ok: false, errors: combined.errors, warnings: combined.warnings };
   }
 
-  const id = await allocateNewTomojiFolderName(manifest.name);
-  const storedManifest: CharacterManifest = { ...manifest, id, name: id };
+  const animationFramePaths = Object.fromEntries(
+    await Promise.all(
+      Object.entries(manifest.animations).flatMap(([category, definition]) =>
+        definition
+          ? [
+              Promise.all(
+                definition.frames.map((frame) => joinPath(sourceDir, frame.src)),
+              ).then((paths) => [category, paths] as const),
+            ]
+          : [],
+      ),
+    ),
+  ) as Partial<Record<AnimationCategory, string[]>>;
+
+  return {
+    sourceDir,
+    manifest,
+    animationFramePaths,
+    warnings: combined.warnings,
+  };
+}
+
+export async function importScannedTomoji(
+  scan: TomojiImportScan,
+  name: string,
+): Promise<TomojiImportResult> {
+  const id = await allocateNewTomojiFolderName(name.trim() || scan.manifest.name);
+  const storedManifest: CharacterManifest = { ...scan.manifest, id, name: id };
   const destDir = await characterDirPath(id);
   await ensureDir(destDir);
-  await copyManifestAssets(storedManifest, sourceDir, destDir);
+  await copyManifestAssets(storedManifest, scan.sourceDir, destDir);
   await writeJson(await characterManifestPath(id), storedManifest);
 
   await addCharacter({
@@ -108,6 +140,6 @@ export async function importTomojiFromFolder(): Promise<TomojiImportResult | nul
     ok: true,
     characterId: id,
     errors: [],
-    warnings: combined.warnings,
+    warnings: scan.warnings,
   };
 }

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { useCharacterAnimationRegistry } from "../../hooks/useCharacterAnimationRegistry";
-import type { AnimationRegistry } from "../../services/animationRegistry";
+import { useCharacterIdlePreview } from "../../hooks/useCharacterIdlePreview";
 import { isBuiltinCharacterId } from "../../services/characterLibrary";
 import type { CompanionInstance } from "../../types/companionInstance";
 import { MutedIcon } from "../MutedIcon";
@@ -26,12 +25,18 @@ interface TomojiCardProps {
   style?: CSSProperties;
 }
 
-interface TomojiCardSpriteProps {
-  registry: AnimationRegistry;
-}
+function TomojiCardSpriteLoader({ characterId }: { characterId: string }) {
+  const idleFrame = useCharacterIdlePreview(characterId);
 
-function TomojiCardSprite({ registry }: TomojiCardSpriteProps) {
-  const idleFrame = registry.getAnimation("idle").frames[0];
+  if (!idleFrame) {
+    return (
+      <div
+        className="animate-pulse rounded-lg bg-island-ink/15"
+        style={{ width: CARD_SPRITE_HEIGHT * 0.75, height: CARD_SPRITE_HEIGHT * 0.75 }}
+        aria-hidden
+      />
+    );
+  }
 
   return (
     <FittedTomojiSprite
@@ -42,22 +47,6 @@ function TomojiCardSprite({ registry }: TomojiCardSpriteProps) {
       maxWidth={CARD_SPRITE_HEIGHT * 1.5}
     />
   );
-}
-
-function TomojiCardSpriteLoader({ characterId }: { characterId: string }) {
-  const registry = useCharacterAnimationRegistry(characterId);
-
-  if (!registry) {
-    return (
-      <div
-        className="animate-pulse rounded-lg bg-island-ink/15"
-        style={{ width: CARD_SPRITE_HEIGHT * 0.75, height: CARD_SPRITE_HEIGHT * 0.75 }}
-        aria-hidden
-      />
-    );
-  }
-
-  return <TomojiCardSprite registry={registry} />;
 }
 
 function isCardActionTarget(target: EventTarget | null): boolean {
