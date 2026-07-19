@@ -4,11 +4,13 @@ import { IslandIcon } from "../ui/IslandIcon";
 interface SelectImgFolderStepProps {
   controller: ShimejiDraftController;
   variant?: "shimeji" | "tomoji";
+  onShowGuide?: () => void;
 }
 
 export function SelectImgFolderStep({
   controller,
   variant = "shimeji",
+  onShowGuide,
 }: SelectImgFolderStepProps) {
   const { draft, isLoadingFolder, loadImgFolder } = controller;
   const isTomoji = variant === "tomoji";
@@ -24,33 +26,20 @@ export function SelectImgFolderStep({
             on your machine and nothing is uploaded.
           </p>
 
-          <details className="rounded-2xl border-2 border-island-ink/20 bg-island-paper/80 p-4 text-xs text-island-ink/75">
-            <summary className="group cursor-pointer text-sm font-extrabold text-island-ink marker:text-island-orange">
-              <span className="decoration-2 decoration-island-orange/70 underline-offset-4 transition group-hover:underline group-hover:decoration-island-orange">
-                Sprite making guide
-              </span>
-            </summary>
-            <div className="mt-3 space-y-2 leading-relaxed">
-              <p>
-                Use one transparent canvas size for every sprite. 128x128 is a
-                good starting point; larger works if you want more detail.
-              </p>
-              <p>
-                Keep feet bottom-aligned and leave a little padding so the
-                Tomoji does not clip while walking or falling.
-              </p>
-              <p>
-                Required: idle and walk. Recommended walk set: stand, step,
-                alternate step. Optional: sit, fall, bounce, drag poses, wall
-                grab/climb, ceiling grab/crawl, and emotes.
-              </p>
-              <p>
-                Name files clearly, like idle.png, walk-1.png, walk-2.png,
-                sit.png, fall.png. You can reuse the same sprite in multiple
-                actions.
-              </p>
-            </div>
-          </details>
+          <div className="rounded-2xl border-2 border-island-ink/20 bg-island-paper/80 p-4 text-xs text-island-ink/75">
+            <p className="text-sm font-extrabold text-island-ink">New to making sprites?</p>
+            <p className="mt-2 leading-relaxed">
+              Follow the full step-by-step guide for preparing sprites, assigning
+              animations, and previewing your Tomoji.
+            </p>
+            <button
+              type="button"
+              onClick={onShowGuide}
+              className="mt-3 text-sm font-extrabold text-island-ink decoration-2 decoration-island-orange/70 underline-offset-4 transition hover:underline hover:decoration-island-orange"
+            >
+              Open creation guide
+            </button>
+          </div>
         </div>
       ) : (
         <p className="max-w-xl text-sm leading-relaxed text-neutral-400">

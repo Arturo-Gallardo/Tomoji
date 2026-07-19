@@ -8,6 +8,7 @@ import { AssignAnimationsStep } from "./AssignAnimationsStep";
 import { CharacterDetailsStep } from "./CharacterDetailsStep";
 import { FinalPreviewStep } from "./FinalPreviewStep";
 import { SelectImgFolderStep } from "./SelectImgFolderStep";
+import { TomojiCreationGuide } from "./TomojiCreationGuide";
 import { IslandIcon } from "../ui/IslandIcon";
 
 interface ShimejiImportWizardProps {
@@ -28,6 +29,7 @@ export function ShimejiImportWizard({
 }: ShimejiImportWizardProps) {
   const controller = useShimejiDraft();
   const [step, setStep] = useState(0);
+  const [showGuide, setShowGuide] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,11 +60,12 @@ export function ShimejiImportWizard({
       header={
         <div className="space-y-4">
           <TomojiPageHeader
-            title="Create new Tomoji"
-            onBack={onClose}
-            backLabel="Cancel"
+            title={showGuide ? "Create a Tomoji guide" : "Create new Tomoji"}
+            subtitle={showGuide ? "Prepare sprites, assign animations, then preview your new Tomoji." : undefined}
+            onBack={showGuide ? () => setShowGuide(false) : onClose}
+            backLabel={showGuide ? "Back to creator" : "Cancel"}
           />
-          <nav
+          {!showGuide ? <nav
             className="island-segmented w-full"
             aria-label="Create Tomoji steps"
           >
@@ -103,10 +106,10 @@ export function ShimejiImportWizard({
                 );
               })}
             </ol>
-          </nav>
+          </nav> : null}
         </div>
       }
-      footer={
+      footer={showGuide ? undefined : (
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3">
           <button
             type="button"
@@ -139,18 +142,18 @@ export function ShimejiImportWizard({
             </button>
           )}
         </div>
-      }
+      )}
     >
-      <div key={step} className="island-page-enter">
+      {showGuide ? <TomojiCreationGuide onStartCreation={() => setShowGuide(false)} /> : <div key={step} className="island-page-enter">
         {step === 0 ? (
-          <SelectImgFolderStep controller={controller} variant="tomoji" />
+          <SelectImgFolderStep controller={controller} variant="tomoji" onShowGuide={() => setShowGuide(true)} />
         ) : null}
         {step === 1 ? <AssignAnimationsStep controller={controller} /> : null}
         {step === 2 ? <CharacterDetailsStep controller={controller} /> : null}
         {step === 3 ? <FinalPreviewStep controller={controller} /> : null}
-      </div>
+      </div>}
 
-      {error ? (
+      {error && !showGuide ? (
         <p
           className="island-notice island-notice--error mt-6 px-4 py-3 text-sm font-semibold"
           role="alert"
