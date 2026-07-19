@@ -202,6 +202,7 @@ export function ShimejiFolderImportScreen({
   const [scan, setScan] = useState<ShimejiGraphImportScan | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [isReviewStep, setIsReviewStep] = useState(false);
+  const [showScanSuccess, setShowScanSuccess] = useState(false);
 
   const loadFolder = useCallback(
     async (
@@ -216,6 +217,7 @@ export function ShimejiFolderImportScreen({
       setIsLoadingFolder(true);
       setError(null);
       setIsReviewStep(false);
+      setShowScanSuccess(false);
       try {
         const nextScan = await analyzeShimejiGraphImportSelection(
           folderPath,
@@ -239,6 +241,7 @@ export function ShimejiFolderImportScreen({
         );
         setDraft(nextDraft);
         setName(nextDraft.name);
+        setShowScanSuccess(true);
       } catch (caught) {
         setError(errorMessage(caught));
       } finally {
@@ -257,6 +260,7 @@ export function ShimejiFolderImportScreen({
     setActionsXmlPath(null);
     setBehaviorsXmlPath(null);
     setIsReviewStep(false);
+    setShowScanSuccess(false);
   };
 
   const handleImport = async () => {
@@ -364,9 +368,19 @@ export function ShimejiFolderImportScreen({
           backLabel={showGuide ? "Back to import" : isReviewStep ? "Back" : undefined}
           trailing={
             !showGuide && !isReviewStep ? (
-              <button type="button" onClick={() => setShowGuide(true)} className="island-button island-button--soft text-sm">
-                Show guide
-              </button>
+              draft ? (
+                <button
+                  type="button"
+                  onClick={() => setIsReviewStep(true)}
+                  className="island-button island-button--soft bg-white text-sm"
+                >
+                  Continue to preview
+                </button>
+              ) : (
+                <button type="button" onClick={() => setShowGuide(true)} className="island-button island-button--soft text-sm">
+                  Show guide
+                </button>
+              )
             ) : undefined
           }
         />
@@ -535,22 +549,6 @@ export function ShimejiFolderImportScreen({
 
         {isReviewStep ? null : <FolderTreeExample format={importFormat} />}
 
-        {draft && !isReviewStep ? (
-          <div className="island-card flex flex-wrap items-center justify-between gap-4 p-5 lg:col-span-2">
-            <div>
-              <p className="text-base font-extrabold text-island-ink">Character folder is ready</p>
-              <p className="mt-1 text-sm text-island-muted">Next, choose its Tomoji name and preview its actions.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsReviewStep(true)}
-              className="island-button island-button--primary"
-            >
-              Continue to name and preview
-            </button>
-          </div>
-        ) : null}
-
         {draft && isReviewStep ? (
           <div className="island-card min-w-0 overflow-hidden p-5 lg:col-span-2">
             <div className="min-w-0">
@@ -584,6 +582,42 @@ export function ShimejiFolderImportScreen({
         ) : null}
       </div>
       )}
+      {showScanSuccess && draft ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-island-ink/25 p-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scan-success-title"
+            className="island-dialog w-full max-w-sm p-6 text-center"
+          >
+            <p id="scan-success-title" className="text-lg font-extrabold text-island-ink">
+              Scan successful
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-island-muted">
+              Your Shimeji is ready. Continue to preview its actions and choose a name.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowScanSuccess(false);
+                  setIsReviewStep(true);
+                }}
+                className="island-button island-button--primary"
+              >
+                Continue to preview
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowScanSuccess(false)}
+                className="island-button island-button--soft"
+              >
+                Stay here
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </TomojiPageLayout>
   );
 }

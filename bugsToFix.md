@@ -6,7 +6,7 @@
 
 - decide on premium features
 
-make flow easier to understand
+- make flow easier to understand
 
 - fix sprite names import logic
 
