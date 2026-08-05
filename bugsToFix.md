@@ -10,6 +10,8 @@
 
 - fix sprite names import logic
 
+add tutorial pictures
+
 add stripe
 
 add database
